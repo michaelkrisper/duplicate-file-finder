@@ -109,5 +109,4 @@ def parse_arguments():
 
 if __name__ == "__main__":
     #todo: write unit test!
-    #todo: order files by directory
     main()
