@@ -14,6 +14,7 @@ def get_hash(chunk_size, filepath):
     hash_object = hashlib.sha1()
     with open(filepath, 'rb') as f_input:
     # todo: better performance idea: hash in chunks of 1024, and only hash more if a duplicate was found.
+    # todo: better performance idea: first only check filesize, and only hash if size is the same.
     # todo: make the chunk_size configureable!
         for chunk in iter(lambda:f_input.read(chunk_size), ""):
             hash_object.update(chunk)
@@ -86,7 +87,7 @@ if __name__ == "__main__":
     if sys.argv[1:]:
         #todo: write unit test!
         #todo: document functions
-        #todo: add better argument check
+        #todo: add better argument check (ArgumentParser)
         #todo: add -h, --help command
         #todo: add -v, --verbose for verbose mode (output all scanned files; when a duplicate was found; hashDigests too?)
         #todo: add -s, --size for manual chunksize setting
