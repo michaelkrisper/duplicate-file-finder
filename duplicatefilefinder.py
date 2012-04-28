@@ -29,6 +29,7 @@ def parse_arguments():
     parser.add_argument(dest="directory", help="the directory which should be checked for duplicate files")
     parser.add_argument("-v", dest="verbose", action="store_true", help="display verbose output")
     parser.add_argument("-c", dest="chunksize", action="store", type=int, help="set the default chunk size in bytes for reading files", default=1024*10)
+    parser.add_argument("--hidden", dest="check_hidden", action="store_true", help="also check hidden files and directories.")
     
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-a", dest="show_all", action="store_true", help="display all duplicate files. equal to -top 0")
@@ -40,7 +41,7 @@ def parse_arguments():
 def main():
     """ The main method """
     args = parse_arguments()
-    dupes = get_duplicate_files_by_filesize(directory=args.directory, verbose=args.verbose)
+    dupes = get_duplicate_files_by_filesize(directory=args.directory, check_hidden=args.check_hidden, verbose=args.verbose)
     dupes = get_duplicate_files_by_hash(dupes, chunk_size=args.chunksize, verbose=args.verbose)
     
     if args.show_all or args.top == 0:
@@ -61,7 +62,7 @@ def main():
         (len(dupes), reduce(lambda sumValue, files: sumValue + len(files), dupes, 0))
 
 
-def get_duplicate_files_by_filesize(directory, verbose):
+def get_duplicate_files_by_filesize(directory, check_hidden, verbose):
     """Searches duplicate files by filesize only."""
     files_dict = {}
     file_counter = 0
@@ -70,7 +71,7 @@ def get_duplicate_files_by_filesize(directory, verbose):
         # todo: make that configureable!
             for file_name in filenames:
                 path = os.path.join(dirpath, file_name)
-                if "/." not in dirpath:
+                if check_hidden or "/." not in dirpath:
                     if verbose: print "Checking file:", path
                     size = os.path.getsize(path)
                     if files_dict.has_key(size):
@@ -85,7 +86,7 @@ def get_duplicate_files_by_filesize(directory, verbose):
     dupes = [files for files in files_dict.values() if len(files) > 1]
     print "\nFound %d duplicates by files size (%d duplicate files)" % \
         (len(dupes), reduce(lambda sumValue, files: sumValue + len(files), dupes, 0))
-    return dupes 
+    return dupes
 
 
 def get_duplicate_files_by_hash(duplicateFiles, chunk_size, verbose):
