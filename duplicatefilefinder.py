@@ -32,7 +32,7 @@ def findAllDuplicates(path, chunkSize=1024*20):
                 if not hashes.has_key(hashDigest):
                     hashes[hashDigest] = [filepath]
                 else:
-                    if len(hashes[hashDigest]) == 1:
+                    if len(hashes[hashDigest]) == 1: 
                         dupeCount += 1
                     hashes[hashDigest].append(filepath)
                 fileCounter += 1
@@ -53,10 +53,16 @@ if sys.argv[1:]:
     print "\n\nDisplaying Top 10 of most duplicated files:"
     for pos, filePaths in enumerate(sorted(dupes, key=lambda filePaths: len(filePaths), reverse=True), start=1):
         commonPrefix = os.path.dirname(os.path.commonprefix(filePaths))
-        print "\n(%d) Found %d duplicate files (size: %d Bytes) in %s/:" % (pos, len(filePaths), os.path.getsize(filePaths[0]), commonPrefix)
+        print "\n(%d) Found %d duplicate files (size: %d Bytes) in %s/:" % (pos, 
+                                                                            len(filePaths),
+                                                                            os.path.getsize(filePaths[0]), 
+                                                                            commonPrefix)
         for i, filePath in enumerate(filePaths, start=1):
             print "\t%d: %s" % (i, filePath[len(commonPrefix)+1:])
             
-    print "\nFound %d Duplicates (%d duplicate files in total)" % (len(dupes), reduce(lambda sumValue, files: sumValue + len(files), dupes, 0))
+    print "\nFound %d duplicates (%d duplicate files in total)" % (len(dupes), 
+                                                                   reduce(lambda sumValue, files: sumValue + len(files), dupes, 0))
 else:
-    print "usage:  duplicate-file-finder.py <directory_path>"
+    print "usage:  %s <directory>\n" % sys.argv[0]
+    print "Arguments:"
+    print "<directory>\t the directory which should be checked for duplicate files.\n"
