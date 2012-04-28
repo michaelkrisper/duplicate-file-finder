@@ -1,13 +1,14 @@
 # -*- coding: UTF-8 -*-
+
 import sys
 import os
 import hashlib
 
-def findAllDuplicates(path, chunkSize=1024*200):
-    # idea: hash in chunks of 1024, but hash more and more if a duplicate was found, until the duplicate files where competely read
-    
+def findAllDuplicates(path, chunkSize=1024*20):
     fileCounter = 0
     for dirpath, _, files in os.walk(path):
+        # exclude "hidden" directories (dirs with . prefix, e.g. ~/.ssh)
+        # todo: make that configureable!
         if "/." not in dirpath:
             fileCounter = fileCounter + len(files)
             print "Counting files ... %d\r" % fileCounter,
@@ -18,10 +19,14 @@ def findAllDuplicates(path, chunkSize=1024*200):
     dupeCount = 0
     for dirpath, _, filenames in os.walk(path):
         for filename in filenames:
+            # exclude "hidden" directories (dirs with . prefix, e.g. ~/.ssh)
+            # todo: make that configureable!
             if "/." not in dirpath:
                 filepath = os.path.join(dirpath, filename)
                 hashObject = hashlib.sha1()
                 with open(filepath, 'rb') as f:
+                    # todo: check performance idea: hash in chunks of 1024, and only hash more if a duplicate was found.
+                    # todo: make the chunkSize configureable!
                     hashObject.update(f.read(chunkSize))
                 hashDigest = hashObject.digest()
                 if not hashes.has_key(hashDigest):
