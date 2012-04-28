@@ -29,7 +29,7 @@ def parse_arguments():
     parser.add_argument(dest="directory", help="the directory which should be checked for duplicate files")
     parser.add_argument("-v", dest="verbose", action="store_true", help="display verbose output")
     parser.add_argument("-c", dest="chunksize", action="store", type=int, help="set the default chunk size in bytes for reading files", default=1024*10)
-    parser.add_argument("--hidden", dest="check_hidden", action="store_true", help="also check hidden files and directories.")
+    parser.add_argument("--hidden", dest="check_hidden", action="store_true", help="check hidden files and directories too")
     
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-a", dest="show_all", action="store_true", help="display all duplicate files. equal to -top 0")
@@ -69,42 +69,49 @@ def get_duplicate_files_by_filesize(directory, check_hidden, verbose):
     for dirpath, _, filenames in os.walk(directory):
         # exclude "hidden" directories (dirs with . prefix, e.g. ~/.ssh)
         # todo: make that configureable!
-            for file_name in filenames:
-                path = os.path.join(dirpath, file_name)
-                if check_hidden or "/." not in dirpath:
-                    if verbose: print "Checking file:", path
-                    size = os.path.getsize(path)
-                    if files_dict.has_key(size):
-                        files_dict[size].append(path)
-                        if verbose: print "Found duplicate file size."
-                    else:
-                        files_dict[size] = [path]
-                    file_counter += 1
-                    print "Counting files ... %d\r" % file_counter,
-                else:
-                    if verbose: print "Jumped over hidden directory/file:", path
+        for file_name in filenames:
+            path = os.path.join(dirpath, file_name)
+            if os.path.islink(path) or check_hidden or "/." not in dirpath:
+                if verbose:
+                    print "Jumped over hidden directory/file:", path
+                continue
+            
+            if verbose:
+                print "Checking file:", path
+            size = os.path.getsize(path)
+            if files_dict.has_key(size):
+                files_dict[size].append(path)
+                if verbose:
+                    print "Found duplicate file size."
+            else:
+                files_dict[size] = [path]
+            file_counter += 1
+            print "Counting files ... %d\r" % file_counter,
+                
     dupes = [files for files in files_dict.values() if len(files) > 1]
     print "\nFound %d duplicates by files size (%d duplicate files)" % \
         (len(dupes), reduce(lambda sumValue, files: sumValue + len(files), dupes, 0))
     return dupes
 
 
-def get_duplicate_files_by_hash(duplicateFiles, chunk_size, verbose):
+def get_duplicate_files_by_hash(duplicate_files, chunk_size, verbose):
     """ Finds all duplicate files in the directory. """
     
     hashes = {}
     file_counter = 0
     dupe_count = 0
-    for filenames in duplicateFiles:
+    for filenames in duplicate_files:
         for filepath in filenames:
-            if verbose: print "Checking file: %s" % filepath
+            if verbose:
+                print "Checking file: %s" % filepath
             digest = get_hash_for_file(filepath, chunk_size)
             if not hashes.has_key(digest):
                 hashes[digest] = [filepath]
             else:
                 if len(hashes[digest]) == 1:
                     dupe_count += 1
-                    if verbose: print "File was a duplicate."
+                    if verbose:
+                        print "File was a duplicate."
                 hashes[digest].append(filepath)
             file_counter += 1
             print "Files checked: %d - Duplicates found: %d\r" % (file_counter, dupe_count),
