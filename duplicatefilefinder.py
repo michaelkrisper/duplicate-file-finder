@@ -6,55 +6,6 @@ import os
 import hashlib
 import argparse
 
-def get_hash(chunk_size, filepath):
-    """ Calculates the hash of a file. """
-    hash_object = hashlib.sha1()
-    with open(filepath, 'rb') as f_input:
-    # todo: better performance idea: hash in chunks of 1024, and only hash more if a duplicate was found.
-    # todo: better performance idea: first only check filesize, and only hash if size is the same.
-    # todo: make the chunk_size configureable!
-        for chunk in iter(lambda:f_input.read(chunk_size), ""):
-            hash_object.update(chunk)
-    
-    digest = hash_object.digest()
-    return digest
-
-def find_all_duplicates(directory, chunk_size=1024 * 100, verbose=False):
-    """ Finds alle duplicate files in the directory. """
-    file_counter = 0
-    for dirpath, _, files in os.walk(directory):
-        # exclude "hidden" directories (dirs with . prefix, e.g. ~/.ssh)
-        # todo: make that configureable!
-        if "/." not in dirpath:
-            file_counter = file_counter + len(files)
-            print "Counting files ... %d\r" % file_counter,
-    print ""
-    
-    hashes = {}    
-    file_counter = 0
-    dupe_count = 0
-    for dirpath, _, filenames in os.walk(directory):
-        for filename in filenames:
-            # exclude "hidden" directories (dirs with . prefix, e.g. ~/.ssh)
-            # todo: make that configureable!
-            if "/." not in dirpath:
-                filepath = os.path.join(dirpath, filename)
-                if verbose: print "Checking file: %s" % filepath
-                digest = get_hash(chunk_size, filepath)
-                if not hashes.has_key(digest):
-                    hashes[digest] = [filepath]
-                else:
-                    if len(hashes[digest]) == 1:
-                        dupe_count += 1
-                        if verbose: print "File was a duplicate."
-                    hashes[digest].append(filepath)
-                file_counter += 1
-                print "Files checked: %d - Duplicates found: %d\r" % (file_counter, dupe_count),
-                sys.stdout.flush()
-            else:
-                if verbose: print "Jumped over hidden directory: %s" % dirpath  
-    return [filelist for filelist in hashes.values() if len(filelist) > 1]
-
 def main():
     """ The main method """
     args = parse_arguments()
@@ -106,6 +57,55 @@ def parse_arguments():
     group.add_argument("-top", dest="top", action="store", type=int, help="set the amount of displayed duplicates. If 0 is given, all results will be displayed. default=10", default=10)
     
     return parser.parse_args()
+
+def find_all_duplicates(directory, chunk_size=1024 * 100, verbose=False):
+    """ Finds alle duplicate files in the directory. """
+    file_counter = 0
+    for dirpath, _, files in os.walk(directory):
+        # exclude "hidden" directories (dirs with . prefix, e.g. ~/.ssh)
+        # todo: make that configureable!
+        if "/." not in dirpath:
+            file_counter = file_counter + len(files)
+            print "Counting files ... %d\r" % file_counter,
+    print ""
+    
+    hashes = {}    
+    file_counter = 0
+    dupe_count = 0
+    for dirpath, _, filenames in os.walk(directory):
+        for filename in filenames:
+            # exclude "hidden" directories (dirs with . prefix, e.g. ~/.ssh)
+            # todo: make that configureable!
+            if "/." not in dirpath:
+                filepath = os.path.join(dirpath, filename)
+                if verbose: print "Checking file: %s" % filepath
+                digest = get_hash(chunk_size, filepath)
+                if not hashes.has_key(digest):
+                    hashes[digest] = [filepath]
+                else:
+                    if len(hashes[digest]) == 1:
+                        dupe_count += 1
+                        if verbose: print "File was a duplicate."
+                    hashes[digest].append(filepath)
+                file_counter += 1
+                print "Files checked: %d - Duplicates found: %d\r" % (file_counter, dupe_count),
+                sys.stdout.flush()
+            else:
+                if verbose: print "Jumped over hidden directory: %s" % dirpath  
+    return [filelist for filelist in hashes.values() if len(filelist) > 1]
+
+def get_hash(chunk_size, filepath):
+    """ Calculates the hash of a file. """
+    hash_object = hashlib.sha1()
+    with open(filepath, 'rb') as f_input:
+    # todo: better performance idea: hash in chunks of 1024, and only hash more if a duplicate was found.
+    # todo: better performance idea: first only check filesize, and only hash if size is the same.
+    # todo: make the chunk_size configureable!
+        for chunk in iter(lambda:f_input.read(chunk_size), ""):
+            hash_object.update(chunk)
+    
+    digest = hash_object.digest()
+    return digest
 
 if __name__ == "__main__":
     #todo: write unit test!
