@@ -40,9 +40,7 @@ def parse_arguments():
 def main():
     """ The main method """
     args = parse_arguments()
-    dupes = find_all_duplicates(directory=args.directory,
-                                verbose=args.verbose,
-                                chunk_size=args.chunksize)
+    dupes = get_duplicate_files_by_hash(directory=args.directory, verbose=args.verbose, chunk_size=args.chunksize)
     
     if args.show_all or args.top == 0:
         args.top = len(dupes)
@@ -55,11 +53,13 @@ def main():
                 (pos, len(paths), os.path.getsize(paths[0]), prefix)
             for i, path in enumerate(sorted(paths), start=1):
                 print "\t%d: %s" % (i, path[len(prefix) + 1:])
+    else:
+        print "\n\nNo duplicate files to display."
             
     print "\nFound %d duplicates (%d duplicate files)" % \
         (len(dupes), reduce(lambda sumValue, files: sumValue + len(files), dupes, 0))
 
-def find_all_duplicates(directory, chunk_size=1024 * 100, verbose=False):
+def get_duplicate_files_by_hash(directory, chunk_size=1024 * 100, verbose=False):
     """ Finds all duplicate files in the directory. """
     duplicateFiles = get_duplicate_files_by_filesize(directory, verbose)
     
@@ -69,7 +69,7 @@ def find_all_duplicates(directory, chunk_size=1024 * 100, verbose=False):
     for filenames in duplicateFiles:
         for filepath in filenames:
             if verbose: print "Checking file: %s" % filepath
-            digest = get_hash(chunk_size, filepath)
+            digest = get_hash_for_file(chunk_size, filepath)
             if not hashes.has_key(digest):
                 hashes[digest] = [filepath]
             else:
@@ -110,7 +110,7 @@ def get_duplicate_files_by_filesize(directory, verbose=False):
     return dupes 
 
 
-def get_hash(chunk_size, filepath):
+def get_hash_for_file(filepath, chunk_size):
     """ Calculates the hash of a file. """
     # todo: better performance idea: hash in chunks of 1024, and only hash more if a duplicate was found.
     
