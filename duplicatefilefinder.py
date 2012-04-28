@@ -28,7 +28,7 @@ def parse_arguments():
     
     parser.add_argument(dest="directory", help="the directory which should be checked for duplicate files")
     parser.add_argument("-v", dest="verbose", action="store_true", help="display verbose output")
-    parser.add_argument("-c", dest="chunksize", action="store", type=int, help="set the default chunk size in bytes for reading files", default=1024)
+    parser.add_argument("-c", dest="chunksize", action="store", type=int, help="set the default chunk size in bytes for reading files", default=1024*10)
     
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-a", dest="show_all", action="store_true", help="display all duplicate files. equal to -top 0")
@@ -40,7 +40,8 @@ def parse_arguments():
 def main():
     """ The main method """
     args = parse_arguments()
-    dupes = get_duplicate_files_by_hash(directory=args.directory, verbose=args.verbose, chunk_size=args.chunksize)
+    dupes = get_duplicate_files_by_filesize(directory=args.directory, verbose=args.verbose)
+    dupes = get_duplicate_files_by_hash(dupes, chunk_size=args.chunksize, verbose=args.verbose)
     
     if args.show_all or args.top == 0:
         args.top = len(dupes)
@@ -59,31 +60,8 @@ def main():
     print "\nFound %d duplicates (%d duplicate files)" % \
         (len(dupes), reduce(lambda sumValue, files: sumValue + len(files), dupes, 0))
 
-def get_duplicate_files_by_hash(directory, chunk_size=1024 * 100, verbose=False):
-    """ Finds all duplicate files in the directory. """
-    duplicateFiles = get_duplicate_files_by_filesize(directory, verbose)
-    
-    hashes = {}
-    file_counter = 0
-    dupe_count = 0
-    for filenames in duplicateFiles:
-        for filepath in filenames:
-            if verbose: print "Checking file: %s" % filepath
-            digest = get_hash_for_file(chunk_size, filepath)
-            if not hashes.has_key(digest):
-                hashes[digest] = [filepath]
-            else:
-                if len(hashes[digest]) == 1:
-                    dupe_count += 1
-                    if verbose: print "File was a duplicate."
-                hashes[digest].append(filepath)
-            file_counter += 1
-            print "Files checked: %d - Duplicates found: %d\r" % (file_counter, dupe_count),
-            sys.stdout.flush()
-            
-    return [filelist for filelist in hashes.values() if len(filelist) > 1]
 
-def get_duplicate_files_by_filesize(directory, verbose=False):
+def get_duplicate_files_by_filesize(directory, verbose):
     """Searches duplicate files by filesize only."""
     files_dict = {}
     file_counter = 0
@@ -110,17 +88,40 @@ def get_duplicate_files_by_filesize(directory, verbose=False):
     return dupes 
 
 
+def get_duplicate_files_by_hash(duplicateFiles, chunk_size, verbose):
+    """ Finds all duplicate files in the directory. """
+    
+    hashes = {}
+    file_counter = 0
+    dupe_count = 0
+    for filenames in duplicateFiles:
+        for filepath in filenames:
+            if verbose: print "Checking file: %s" % filepath
+            digest = get_hash_for_file(filepath, chunk_size)
+            if not hashes.has_key(digest):
+                hashes[digest] = [filepath]
+            else:
+                if len(hashes[digest]) == 1:
+                    dupe_count += 1
+                    if verbose: print "File was a duplicate."
+                hashes[digest].append(filepath)
+            file_counter += 1
+            print "Files checked: %d - Duplicates found: %d\r" % (file_counter, dupe_count),
+            sys.stdout.flush()
+            
+    return [filelist for filelist in hashes.values() if len(filelist) > 1]
+
+
 def get_hash_for_file(filepath, chunk_size):
     """ Calculates the hash of a file. """
     # todo: better performance idea: hash in chunks of 1024, and only hash more if a duplicate was found.
-    
     hash_object = hashlib.sha1()
     with open(filepath, 'rb') as f_input:
         for chunk in iter(lambda:f_input.read(chunk_size), ""):
             hash_object.update(chunk)
-    
     digest = hash_object.digest()
     return digest
+        
 
 if __name__ == "__main__":
     #todo: write unit test!
