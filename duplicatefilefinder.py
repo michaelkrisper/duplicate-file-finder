@@ -82,7 +82,7 @@ def filter_duplicate_files(files):
     
     filelist = ((filepath, generate_fileid(filepath), 0) for filepath in files)
     total_amount = 0
-    count = lambda x: x + 1
+    getCount = lambda x: x + 1
     duplicates = {}
     files_checked = 0
     run = True
@@ -91,7 +91,7 @@ def filter_duplicate_files(files):
         file_groups = {}
         for filepath, idgenerator, digest in filelist:
             try:
-                total_amount += 0 if counted else 1
+                total_amount = getCount(total_amount)
                 files_checked += 1
                 digest = idgenerator.next()
                 file_groups.setdefault(digest, []).append((filepath, idgenerator, digest))
@@ -101,14 +101,9 @@ def filter_duplicate_files(files):
                         files_checked -= 1
             except StopIteration:
                 duplicates.setdefault(digest, []).append(filepath)
-            print "\r{:3d}% [{:20s}] Checked {} / {} files: Found {} duplicates".format(
-                100 * files_checked / total_amount if counted else 0,
-                '#' * int(20 * files_checked / total_amount) if counted else "",
-                files_checked, 
-                total_amount, 
-                len(duplicates)),
+            print "\rChecked {} / {} files: Found {} duplicates".format(files_checked, total_amount, len(duplicates)),
         run = (len(file_groups) > 0)
-        counted = True
+        getCount = lambda x: x
         filelist = (entry for files in file_groups.itervalues() if len(files) > 1 for entry in files)
     return duplicates.values()
 
