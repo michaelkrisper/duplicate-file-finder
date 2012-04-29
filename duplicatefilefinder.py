@@ -90,7 +90,7 @@ def get_files(directory, include_hidden, include_empty):
              for filename in filenames
                 if not os.path.islink(os.path.join(dirpath, filename)) 
                 and (include_hidden or 
-                     reduce(lambda r, d: r and not d.startswith("."), os.path.join(dirpath, filename).split(os.sep), True))
+                     reduce(lambda r, d: r and not d.startswith("."), os.path.join(dirpath, filename).split(os.sep)[1:], True))
                 and (include_empty or os.path.getsize(os.path.join(dirpath, filename)) > 0))]
 
 def filter_duplicate_files(files, hash_function):
@@ -104,10 +104,8 @@ def filter_duplicate_files(files, hash_function):
         for filepath in file_list:
             file_counter += 1
             digest = hash_function(filepath)
-            if not file_groups.has_key(digest):
-                file_groups[digest] = [filepath]
-            else:
-                file_groups[digest].append(filepath)
+            file_groups.setdefault(digest, []).append(filepath)
+            if len(file_groups[digest]) > 1:
                 dupe_file_count += 1
                 if len(file_groups[digest]) == 2:
                     dupe_count += 1
@@ -127,6 +125,15 @@ def get_hash_for_file(filename, chunk_size=1024 * 4, partial=False):
             if partial:
                 break
     return hash_object.digest()
+
+def generate_fileid(filename, chunk_size=1024 * 4):
+    """Generates the hash value of a file until file is complete read."""
+    yield os.path.getsize(filename)
+    hash_object = md5.md5()
+    with open(filename, 'rb') as f:
+        for chunk in iter(lambda:f.read(chunk_size), ""):
+            hash_object.update(chunk)
+            yield hash_object.digest()
 
 if __name__ == "__main__":
     main()
