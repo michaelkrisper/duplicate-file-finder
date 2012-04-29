@@ -4,7 +4,7 @@
 
 import os
 import argparse
-import md5
+import hashlib
 
 __author__ = "Michael Krisper"
 __copyright__ = "Copyright 2012, Michael Krisper"
@@ -54,9 +54,9 @@ def print_duplicates(files, displaycount=None):
 
 def get_hash_key(filename):
     """Calculates the hash value for a file."""
-    hash_object = md5.md5()
+    hash_object = hashlib.md5()
     with open(filename, 'rb') as inputfile:
-        for chunk in iter(lambda:inputfile.read(1024 * 4), ""):
+        for chunk in iter(lambda:inputfile.read(1024 * 8), ""):
             hash_object.update(chunk)
     return hash_object.digest()
 
