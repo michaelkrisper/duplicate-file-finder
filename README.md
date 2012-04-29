@@ -1,7 +1,7 @@
 # duplicate-file-finder
 This is a python script to find duplicate files in a directory structure.
 
-Files are searched in 3 ways to get optimimum performance:
+Files are searched in 3 ways to get optimal performance:
 
 1. Compare by file size only
 2. Compare by md5-hash value of the first 1024 bytes
