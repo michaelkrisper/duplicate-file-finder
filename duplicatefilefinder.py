@@ -118,16 +118,10 @@ def generate_fileid(filename, chunk_size=1024 * 8):
     yield os.path.getsize(filename)
 
     hash_object = md5.md5()
-    position = 0
-    while True:
-        with open(filename, 'rb') as f:
-            f.seek(position)
-            chunk = f.read(chunk_size)
-            position = f.tell()
-        if chunk == "":
-            break
-        hash_object.update(chunk)
-        yield hash_object.digest()
+    with open(filename, 'rb') as f:
+        for chunk in iter(lambda:f.read(chunk_size), ""):
+            hash_object.update(chunk)
+    yield hash_object.digest()
 
 def print_duplicates(files, displaycount):
     for pos, paths in enumerate(sorted(files, key=len, reverse=True)[:displaycount], start=1):
