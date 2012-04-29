@@ -38,20 +38,21 @@ After the whole directory structure is searched, duplicate files are displayed. 
 
 
 ##Sample Output:
-       duplicatefilefinder.py . --hidden --empty
-    (By File Size) 160 Files checked, 110 duplicates found (66 duplicate files) 
-    (By File Hash) 66 Files checked, 63 duplicates found (6 duplicate files) 
+	duplicatefilefinder.py . --empty --hidden
+	(By File Size) 160 Files checked, 50 duplicates found (66 duplicate files) 
+	(By File Hash) 66 Files checked, 3 duplicates found (6 duplicate files) 
+	
+	(1) Found 2 duplicate files (size: 16 Bytes) in ./test/:
+	 1: copy of testfile
+	 2: testfile
+	
+	(2) Found 2 duplicate files (size: 41 Bytes) in ./.git/:
+	 1: ORIG_HEAD
+	 2: refs/tags/v1.1
+	
+	(3) Found 2 duplicate files (size: 41 Bytes) in ./.git/refs/:
+	 1: heads/master
+	 2: remotes/origin/master
+	
+	Found 3 duplicates (6 duplicate files total)
 
-    (1) Found 2 duplicate files (size: 16 Bytes) in ./test/:
-     1: copy of testfile
-     2: testfile
-
-    (2) Found 2 duplicate files (size: 41 Bytes) in ./.git/:
-     1: ORIG_HEAD
-     2: refs/tags/v1.1
- 
-    (3) Found 2 duplicate files (size: 41 Bytes) in ./.git/refs/:
-     1: heads/master
-     2: remotes/origin/master
-    
-    Found 3 duplicates (6 duplicate files total)

@@ -66,14 +66,17 @@ def filter_duplicate_files(files):
     for keyfunction, name in [(os.path.getsize, "By File Size"), (get_hash_key, "By File Hash")]:
         duplicates.clear()
         count = 0
+        duplicate_count = 0
         for i, filepath in enumerate(files, start=1):
             key = keyfunction(filepath)
             duplicates.setdefault(key, []).append(filepath)
             if len(duplicates[key]) > 1:
                 count += 1
+                duplicate_count += 1
                 if len(duplicates[key]) == 2:
                     count += 1
-            print "\r(%s) %d Files checked, %d duplicates found (%d duplicate files)" % (name, i, len(duplicates), count),
+                    
+            print "\r(%s) %d Files checked, %d duplicates found (%d duplicate files)" % (name, i, duplicate_count, count),
         print ""
         files = [filepath for filepaths in duplicates.itervalues() if len(filepaths) > 1 for filepath in filepaths]
 
