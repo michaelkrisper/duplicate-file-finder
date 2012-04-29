@@ -81,18 +81,20 @@ def get_files(directory, include_hidden, include_empty):
 def filter_duplicate_files(files):
     """ Finds all duplicate files in the directory. """
     filelist = ((filepath, generate_fileid(filepath), 0) for filepath in files)
+
     total_amount = 0
     counted = False
-    
-    duplicates = {}
+
     files_checked = 0
+
+    duplicates = {}
     while True:
         file_groups = {}
         for filepath, idgenerator, digest in filelist:
+            files_checked += 1
+            if not counted:
+                total_amount += 1
             try:
-                if not counted:
-                    total_amount += 1
-                files_checked += 1
                 digest = idgenerator.next()
                 file_groups.setdefault(digest, []).append((filepath, idgenerator, digest))
                 if len(file_groups[digest]) > 1:
@@ -102,12 +104,13 @@ def filter_duplicate_files(files):
             except StopIteration:
                 duplicates.setdefault(digest, []).append(filepath)
 
-            print "\rChecked {} / {} files: Found {} duplicates".format(files_checked, total_amount, len(duplicates)),
+            print "\rChecked %d / %d files: Found %d duplicates" % (files_checked, total_amount, len(duplicates)),
 
         if len(file_groups) == 0:
             break
         counted = True
         filelist = (entry for files in file_groups.itervalues() if len(files) > 1 for entry in files)
+
     return duplicates.values()
 
 def generate_fileid(filename, chunk_size=1024 * 10):
