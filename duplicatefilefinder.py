@@ -56,6 +56,7 @@ def parse_arguments():
 def main():
     """The main method"""
     args = parse_arguments()
+    
     print "Preparing for search ... ",
     sys.stdout.flush()
     files = get_files(args.directory, args.include_hidden, args.include_empty)
@@ -72,26 +73,25 @@ def get_files(directory, include_hidden, include_empty):
     return (os.path.join(dirpath, filename) 
              for dirpath, _, filenames in os.walk(directory) 
              for filename in filenames
-                if not os.path.islink(os.path.join(dirpath, filename)) 
+                if not os.path.islink(os.path.join(dirpath, filename))
                 and (include_hidden or 
                      reduce(lambda r, d: r and not d.startswith("."), os.path.join(dirpath, filename).split(os.sep)[1:], True))
                 and (include_empty or os.path.getsize(os.path.join(dirpath, filename)) > 0))
 
 def filter_duplicate_files(files):
     """ Finds all duplicate files in the directory. """
-    
     filelist = ((filepath, generate_fileid(filepath), 0) for filepath in files)
     total_amount = 0
-    getCount = lambda x: x + 1
+    counted = False
+    
     duplicates = {}
     files_checked = 0
-    run = True
-    counted = False
-    while run:
+    while True:
         file_groups = {}
         for filepath, idgenerator, digest in filelist:
             try:
-                total_amount = getCount(total_amount)
+                if not counted:
+                    total_amount += 1
                 files_checked += 1
                 digest = idgenerator.next()
                 file_groups.setdefault(digest, []).append((filepath, idgenerator, digest))
@@ -101,28 +101,28 @@ def filter_duplicate_files(files):
                         files_checked -= 1
             except StopIteration:
                 duplicates.setdefault(digest, []).append(filepath)
+
             print "\rChecked {} / {} files: Found {} duplicates".format(files_checked, total_amount, len(duplicates)),
-        run = (len(file_groups) > 0)
-        getCount = lambda x: x
+
+        if len(file_groups) == 0:
+            break
+        counted = True
         filelist = (entry for files in file_groups.itervalues() if len(files) > 1 for entry in files)
     return duplicates.values()
 
-def generate_fileid(filename, chunk_size=1024 * 4):
+def generate_fileid(filename, chunk_size=1024 * 10):
     """Generates an id for a file until the file is complete read."""
-
-    # first simple id is the filesize (performance reasons!)
     yield os.path.getsize(filename)
 
-    # after the first one, calculate incremental hash value
     hash_object = md5.md5()
     position = 0
-    chunk = "0"
-    while chunk != "":
-        # open file every time the generator generates an id, because if file stays open, to many file handles are opened
+    while True:
         with open(filename, 'rb') as f:
             f.seek(position)
             chunk = f.read(chunk_size)
             position = f.tell()
+        if chunk == "":
+            break
         hash_object.update(chunk)
         yield hash_object.digest()
 
