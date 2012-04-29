@@ -79,7 +79,7 @@ def get_files(directory, include_hidden, include_empty):
                 and (include_empty or os.path.getsize(os.path.join(dirpath, filename)) > 0))
 
 def filter_duplicate_files(files):
-    """ Finds all duplicate files in the directory. """
+    """Finds all duplicate files in the directory."""
     filelist = ((filepath, generate_fileid(filepath), 0) for filepath in files)
 
     total_amount = 0
@@ -104,7 +104,7 @@ def filter_duplicate_files(files):
             except StopIteration:
                 duplicates.setdefault(digest, []).append(filepath)
 
-            print "\rChecked %d / %d files: Found %d duplicates" % (files_checked, total_amount, len(duplicates)),
+            print "\rChecked %d / %d files" % (files_checked, total_amount),
 
         if len(file_groups) == 0:
             break
@@ -113,7 +113,7 @@ def filter_duplicate_files(files):
 
     return duplicates.values()
 
-def generate_fileid(filename, chunk_size=1024 * 10):
+def generate_fileid(filename, chunk_size=1024 * 8):
     """Generates an id for a file until the file is complete read."""
     yield os.path.getsize(filename)
 
