@@ -11,7 +11,7 @@ __author__ = "Michael Krisper"
 __copyright__ = "Copyright 2012, Michael Krisper"
 __credits__ = ["Michael Krisper"]
 __license__ = "GPL"
-__version__ = "1.0.1"
+__version__ = "1.1.0"
 __maintainer__ = "Michael Krisper"
 __email__ = "michael.krisper@gmail.com"
 __status__ = "Production"
@@ -56,7 +56,7 @@ def parse_arguments():
 def main():
     """The main method"""
     args = parse_arguments()
-    print "Preparing for search ... (may take a while)",
+    print "Preparing for search ... ",
     sys.stdout.flush()
     files = get_files(args.directory, args.include_hidden, args.include_empty)
 
@@ -80,14 +80,18 @@ def get_files(directory, include_hidden, include_empty):
 def filter_duplicate_files(files):
     """ Finds all duplicate files in the directory. """
     
-    filelist = [(filepath, generate_fileid(filepath), 0) for filepath in files]
-    total_amount = len(filelist)
+    filelist = ((filepath, generate_fileid(filepath), 0) for filepath in files)
+    total_amount = 0
+    count = lambda x: x + 1
     duplicates = {}
     files_checked = 0
-    while len(filelist) > 0:
+    run = True
+    counted = False
+    while run:
         file_groups = {}
         for filepath, idgenerator, digest in filelist:
             try:
+                total_amount += 0 if counted else 1
                 files_checked += 1
                 digest = idgenerator.next()
                 file_groups.setdefault(digest, []).append((filepath, idgenerator, digest))
@@ -98,15 +102,14 @@ def filter_duplicate_files(files):
             except StopIteration:
                 duplicates.setdefault(digest, []).append(filepath)
             print "\r{:3d}% [{:20s}] Checked {} / {} files: Found {} duplicates".format(
-                
-                100 * files_checked / total_amount,
-                '#' * int(20 * files_checked / total_amount),
-                
+                100 * files_checked / total_amount if counted else 0,
+                '#' * int(20 * files_checked / total_amount) if counted else "",
                 files_checked, 
                 total_amount, 
                 len(duplicates)),
-            
-        filelist = [entry for files in file_groups.itervalues() if len(files) > 1 for entry in files]
+        run = (len(file_groups) > 0)
+        counted = True
+        filelist = (entry for files in file_groups.itervalues() if len(files) > 1 for entry in files)
     return duplicates.values()
 
 def generate_fileid(filename, chunk_size=1024 * 4):
