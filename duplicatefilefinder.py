@@ -24,9 +24,7 @@ def main():
     files = filter_duplicate_files(files, os.path.getsize)
     
     print "\nQuick content compare:"
-    files = filter_duplicate_files(files, lambda filename: get_hash_for_file(filename,
-                                                                             chunk_size=1024,
-                                                                             partial=True))
+    files = filter_duplicate_files(files, lambda filename: get_hash_for_file(filename, chunk_size=1024, partial=True))
     
     print "\nIntensive content compare:"
     files = filter_duplicate_files(files, get_hash_for_file)
@@ -64,21 +62,21 @@ def parse_arguments():
     
     parser = argparse.ArgumentParser(description=__doc__, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
     
-    parser.add_argument(dest="directory", 
+    parser.add_argument(dest="directory",
                         help="the directory which should be checked for duplicate files")
 
     group = parser.add_mutually_exclusive_group()
     
-    group.add_argument("-a", dest="show_all", action="store_true", 
+    group.add_argument("-a", dest="show_all", action="store_true",
                        help="display all duplicate files. equal to -top 0")
     
-    group.add_argument("-top", dest="top", action="store", metavar="COUNT", type=int, default=10, 
+    group.add_argument("-top", dest="top", action="store", metavar="COUNT", type=int, default=10,
                        help="set the amount of displayed duplicates. If 0 is given, all results will be displayed. default=10")
 
-    parser.add_argument("--hidden", dest="include_hidden", action="store_true", 
+    parser.add_argument("--hidden", dest="include_hidden", action="store_true",
                         help="check hidden files and directories too")
     
-    parser.add_argument("--empty", dest="include_empty", action="store_true", 
+    parser.add_argument("--empty", dest="include_empty", action="store_true",
                         help="check empty files too")
     
     return parser.parse_args()
@@ -89,7 +87,8 @@ def get_files(directory, include_hidden, include_empty):
              for dirpath, _, filenames in os.walk(directory) 
              for filename in filenames
                 if not os.path.islink(os.path.join(dirpath, filename)) 
-                and (include_hidden or len([d for d in os.path.join(dirpath, filename).split(os.sep) if d.startswith(".")]) == 0) 
+                and (include_hidden or 
+                     reduce(lambda r, d: r and not d.startswith("."), os.path.join(dirpath, filename).split(os.sep), True))
                 and (include_empty or os.path.getsize(os.path.join(dirpath, filename)) > 0))]
 
 def filter_duplicate_files(files, hash_function):
