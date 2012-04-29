@@ -5,6 +5,7 @@
 import os
 import argparse
 import md5
+import sys
 
 __author__ = "Michael Krisper"
 __copyright__ = "Copyright 2012, Michael Krisper"
@@ -55,23 +56,80 @@ def parse_arguments():
 def main():
     """The main method"""
     args = parse_arguments()
+    print "Preparing for search ... (may take a while)",
+    sys.stdout.flush()
     files = get_files(args.directory, args.include_hidden, args.include_empty)
-    
-    print "Filesize compare:"
-    files = filter_duplicate_files(files, os.path.getsize)
-    
-    print "\nQuick content compare:"
-    files = filter_duplicate_files(files, lambda filename: get_hash_for_file(filename, partial=True))
-    
-    print "\nIntensive content compare:"
-    files = filter_duplicate_files(files, get_hash_for_file)
+
+    duplicate_list = filter_duplicate_files(files)
     
     if args.show_all or args.top == 0:
         args.top = None
     
-    files = list(files)
+    print_duplicates(duplicate_list, args.top)
 
-    for pos, paths in enumerate(sorted(files, key=len, reverse=True)[:args.top], start=1):
+def get_files(directory, include_hidden, include_empty):
+    """Returns all files in the directory, which apply to the filter rules."""
+    return (os.path.join(dirpath, filename) 
+             for dirpath, _, filenames in os.walk(directory) 
+             for filename in filenames
+                if not os.path.islink(os.path.join(dirpath, filename)) 
+                and (include_hidden or 
+                     reduce(lambda r, d: r and not d.startswith("."), os.path.join(dirpath, filename).split(os.sep)[1:], True))
+                and (include_empty or os.path.getsize(os.path.join(dirpath, filename)) > 0))
+
+def filter_duplicate_files(files):
+    """ Finds all duplicate files in the directory. """
+    
+    filelist = [(filepath, generate_fileid(filepath), 0) for filepath in files]
+    total_amount = len(filelist)
+    duplicates = {}
+    files_checked = 0
+    while len(filelist) > 0:
+        file_groups = {}
+        for filepath, idgenerator, digest in filelist:
+            try:
+                files_checked += 1
+                digest = idgenerator.next()
+                file_groups.setdefault(digest, []).append((filepath, idgenerator, digest))
+                if len(file_groups[digest]) > 1:
+                    files_checked -= 1
+                    if len(file_groups[digest]) == 2:
+                        files_checked -= 1
+            except StopIteration:
+                duplicates.setdefault(digest, []).append(filepath)
+            print "\r{:3d}% [{:20s}] Checked {} / {} files: Found {} duplicates".format(
+                
+                100 * files_checked / total_amount,
+                '#' * int(20 * files_checked / total_amount),
+                
+                files_checked, 
+                total_amount, 
+                len(duplicates)),
+            
+        filelist = [entry for files in file_groups.itervalues() if len(files) > 1 for entry in files]
+    return duplicates.values()
+
+def generate_fileid(filename, chunk_size=1024 * 4):
+    """Generates an id for a file until the file is complete read."""
+
+    # first simple id is the filesize (performance reasons!)
+    yield os.path.getsize(filename)
+
+    # after the first one, calculate incremental hash value
+    hash_object = md5.md5()
+    position = 0
+    chunk = "0"
+    while chunk != "":
+        # open file every time the generator generates an id, because if file stays open, to many file handles are opened
+        with open(filename, 'rb') as f:
+            f.seek(position)
+            chunk = f.read(chunk_size)
+            position = f.tell()
+        hash_object.update(chunk)
+        yield hash_object.digest()
+
+def print_duplicates(files, displaycount):
+    for pos, paths in enumerate(sorted(files, key=len, reverse=True)[:displaycount], start=1):
         prefix = os.path.dirname(os.path.commonprefix(paths))
         print "\n(%d) Found %d duplicate files (size: %d Bytes) in %s/:" % \
             (pos, len(paths), os.path.getsize(paths[0]), prefix)
@@ -80,60 +138,6 @@ def main():
             
     print "\nFound %d duplicates (%d duplicate files total)" % \
         (len(files), reduce(lambda sumValue, files: sumValue + len(files), files, 0))
-
-
-
-def get_files(directory, include_hidden, include_empty):
-    """Returns all files in the directory, which apply to the filter rules."""
-    return [(os.path.join(dirpath, filename) 
-             for dirpath, _, filenames in os.walk(directory) 
-             for filename in filenames
-                if not os.path.islink(os.path.join(dirpath, filename)) 
-                and (include_hidden or 
-                     reduce(lambda r, d: r and not d.startswith("."), os.path.join(dirpath, filename).split(os.sep)[1:], True))
-                and (include_empty or os.path.getsize(os.path.join(dirpath, filename)) > 0))]
-
-def filter_duplicate_files(files, hash_function):
-    """ Finds all duplicate files in the directory. """
-    file_groups = {}
-    file_counter = 0
-    dupe_count = 0
-    dupe_file_count = 0
-    
-    for file_list in files:
-        for filepath in file_list:
-            file_counter += 1
-            digest = hash_function(filepath)
-            file_groups.setdefault(digest, []).append(filepath)
-            if len(file_groups[digest]) > 1:
-                dupe_file_count += 1
-                if len(file_groups[digest]) == 2:
-                    dupe_count += 1
-                    dupe_file_count += 1
-            print "%d files checked - %d duplicates found (%d duplicate files)\r" % \
-                (file_counter, dupe_count, dupe_file_count),
-    
-    print ""
-    return (sublist for sublist in file_groups.values() if len(sublist) > 1)
-
-def get_hash_for_file(filename, chunk_size=1024 * 4, partial=False):
-    """Calculates the hash value of a file."""
-    hash_object = md5.md5()
-    with open(filename, 'rb') as f:
-        for chunk in iter(lambda:f.read(chunk_size), ""):
-            hash_object.update(chunk)
-            if partial:
-                break
-    return hash_object.digest()
-
-def generate_fileid(filename, chunk_size=1024 * 4):
-    """Generates the hash value of a file until file is complete read."""
-    yield os.path.getsize(filename)
-    hash_object = md5.md5()
-    with open(filename, 'rb') as f:
-        for chunk in iter(lambda:f.read(chunk_size), ""):
-            hash_object.update(chunk)
-            yield hash_object.digest()
 
 if __name__ == "__main__":
     main()
