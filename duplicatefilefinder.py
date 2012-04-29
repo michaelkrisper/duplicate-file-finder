@@ -15,35 +15,6 @@ __maintainer__ = "Michael Krisper"
 __email__ = "michael.krisper@gmail.com"
 __status__ = "Production"
 
-def main():
-    """The main method"""
-    args = parse_arguments()
-    files = get_files(args.directory, args.include_hidden, args.include_empty)
-    
-    print "Filesize compare:"
-    files = filter_duplicate_files(files, os.path.getsize)
-    
-    print "\nQuick content compare:"
-    files = filter_duplicate_files(files, lambda filename: get_hash_for_file(filename, chunk_size=1024, partial=True))
-    
-    print "\nIntensive content compare:"
-    files = filter_duplicate_files(files, get_hash_for_file)
-    
-    if args.show_all or args.top == 0:
-        args.top = None
-    
-    files = list(files)
-
-    for pos, paths in enumerate(sorted(files, key=len, reverse=True)[:args.top], start=1):
-        prefix = os.path.dirname(os.path.commonprefix(paths))
-        print "\n(%d) Found %d duplicate files (size: %d Bytes) in %s/:" % \
-            (pos, len(paths), os.path.getsize(paths[0]), prefix)
-        for i, path in enumerate(sorted(paths), start=1):
-            print "\t%d: %s" % (i, path[len(prefix) + 1:])
-            
-    print "\nFound %d duplicates (%d duplicate files total)" % \
-        (len(files), reduce(lambda sumValue, files: sumValue + len(files), files, 0))
-
 def parse_arguments():
     """ Parses the Arguments """
     
@@ -80,6 +51,37 @@ def parse_arguments():
                         help="check empty files too")
     
     return parser.parse_args()
+
+def main():
+    """The main method"""
+    args = parse_arguments()
+    files = get_files(args.directory, args.include_hidden, args.include_empty)
+    
+    print "Filesize compare:"
+    files = filter_duplicate_files(files, os.path.getsize)
+    
+    print "\nQuick content compare:"
+    files = filter_duplicate_files(files, lambda filename: get_hash_for_file(filename, chunk_size=256, partial=True))
+    
+    print "\nIntensive content compare:"
+    files = filter_duplicate_files(files, get_hash_for_file)
+    
+    if args.show_all or args.top == 0:
+        args.top = None
+    
+    files = list(files)
+
+    for pos, paths in enumerate(sorted(files, key=len, reverse=True)[:args.top], start=1):
+        prefix = os.path.dirname(os.path.commonprefix(paths))
+        print "\n(%d) Found %d duplicate files (size: %d Bytes) in %s/:" % \
+            (pos, len(paths), os.path.getsize(paths[0]), prefix)
+        for i, path in enumerate(sorted(paths), start=1):
+            print "%2d: %s" % (i, path[len(prefix) + 1:])
+            
+    print "\nFound %d duplicates (%d duplicate files total)" % \
+        (len(files), reduce(lambda sumValue, files: sumValue + len(files), files, 0))
+
+
 
 def get_files(directory, include_hidden, include_empty):
     """Returns all files in the directory, which apply to the filter rules."""
@@ -119,11 +121,11 @@ def filter_duplicate_files(files, hash_function):
 def get_hash_for_file(filename, chunk_size=1024 * 8, partial=False):
     """Calculates the hash value of a file."""
     hash_object = md5.md5()
-    with open(filename, 'rb') as f_input:
-        for chunk in iter(lambda:f_input.read(chunk_size), ""):
+    with open(filename, 'rb') as f:
+        for chunk in iter(lambda:f.read(chunk_size), ""):
             hash_object.update(chunk)
             if partial:
-                return hash_object.digest()
+                break
     return hash_object.digest()
 
 if __name__ == "__main__":
