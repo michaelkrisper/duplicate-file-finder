@@ -10,7 +10,7 @@ __author__ = "Michael Krisper"
 __copyright__ = "Copyright 2012, Michael Krisper"
 __credits__ = ["Michael Krisper"]
 __license__ = "GPL"
-__version__ = "1.0"
+__version__ = "1.0.1"
 __maintainer__ = "Michael Krisper"
 __email__ = "michael.krisper@gmail.com"
 __status__ = "Production"
@@ -61,7 +61,7 @@ def main():
     files = filter_duplicate_files(files, os.path.getsize)
     
     print "\nQuick content compare:"
-    files = filter_duplicate_files(files, lambda filename: get_hash_for_file(filename, chunk_size=256, partial=True))
+    files = filter_duplicate_files(files, lambda filename: get_hash_for_file(filename, partial=True))
     
     print "\nIntensive content compare:"
     files = filter_duplicate_files(files, get_hash_for_file)
@@ -118,7 +118,7 @@ def filter_duplicate_files(files, hash_function):
     print ""
     return (sublist for sublist in file_groups.values() if len(sublist) > 1)
 
-def get_hash_for_file(filename, chunk_size=1024 * 8, partial=False):
+def get_hash_for_file(filename, chunk_size=1024 * 4, partial=False):
     """Calculates the hash value of a file."""
     hash_object = md5.md5()
     with open(filename, 'rb') as f:
