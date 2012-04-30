@@ -6,6 +6,7 @@ import os
 import argparse
 import hashlib
 import zlib
+import UpdatePrinter
 
 __author__ = "Michael Krisper"
 __copyright__ = "Copyright 2012, Michael Krisper"
@@ -86,6 +87,7 @@ def get_crc_key(filename):
 def filter_duplicate_files(files, top=None):
     """Finds all duplicate files in the directory."""
     duplicates = {}
+    update = UpdatePrinter.UpdatePrinter().update
     iterations = ((os.path.getsize, "By Size", top**2 if top else None),  # top * top <-- this could be performance optimized further by top*3 or top*4
                   (get_crc_key, "By CRC ", top*2 if top else None),       # top * 2
                   (get_hash_key, "By Hash", None))
@@ -103,7 +105,7 @@ def filter_duplicate_files(files, top=None):
                     count += 1
                     duplicate_count += 1
                     
-            print "\r(%s) %d Files checked, %d duplicates found (%d files)" % (name, i, duplicate_count, count),
+            update("\r(%s) %d Files checked, %d duplicates found (%d files)" % (name, i, duplicate_count, count))
         print ""
         sortedfiles = sorted(duplicates.itervalues(), key=len, reverse=True)
         files = [filepath for filepaths in sortedfiles[:topcount] if len(filepaths) > 1 for filepath in filepaths]
