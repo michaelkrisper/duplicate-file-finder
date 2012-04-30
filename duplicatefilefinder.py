@@ -30,26 +30,35 @@ def parse_arguments():
         Description: Searches duplicates and displays ALL results
 
     (4) %(prog)s ~/Downloads --hidden --empty
-        Description: Searches duplicates and also include hidden or empty FILES"""
+        Description: Searches duplicates and also include hidden or empty FILES
+
+    (5) %(prog)s ~/Downloads -top 3 --fast 
+        Description: Searches for the top 3 duplicates. May get less than 3 results, even if they exist."""
 
     parser = argparse.ArgumentParser(description=__doc__, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(dest="directory", help="the directory which should be checked for duplicate FILES")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-a", dest="show_all", action="store_true", help="display all duplicate FILES. equal to -top 0")
-    group.add_argument("-top", dest="top", action="store", metavar="COUNT", default=10, type=int,  
+    group.add_argument("-top", dest="top", action="store", metavar="X", default=10, type=int,  
                        help="set the amount of displayed duplicates. If 0 is given, all results will be displayed. default=10")
+    
     parser.add_argument("--hidden", dest="include_hidden", action="store_true", help="check hidden FILES and directories too")
     parser.add_argument("--empty", dest="include_empty", action="store_true", help="check empty FILES too")
-    ARGS = parser.parse_args()
+    parser.add_argument("--fast", dest="fast", action="store_true", 
+                        help="Searches very fast for only for the top X duplicates. The fast check may return less than the top X, even if they would exist. Remarks: the --fast option is useless when -a is given.")
 
-    if ARGS.show_all or ARGS.top == 0:
-        ARGS.top = None
 
-    return ARGS
+    args = parser.parse_args()
+
+    if args.show_all or args.top == 0:
+        args.top = None
+
+    return args
 
 def print_duplicates(files, displaycount=None):
     """Prints a list of duplicates."""
-    for pos, paths in enumerate(sorted(files, key=len, reverse=True)[:displaycount], start=1):
+    sortedfiles = sorted(files, key=lambda x: (len(x), os.path.getsize(x[0])), reverse=True)
+    for pos, paths in enumerate(sortedfiles[:displaycount], start=1):
         prefix = os.path.dirname(os.path.commonprefix(paths))
         print "\n(%d) Found %d duplicate files (size: %d Bytes) in %s/:" % \
             (pos, len(paths), os.path.getsize(paths[0]), prefix)
@@ -73,14 +82,14 @@ def get_crc_key(filename):
         chunk = inputfile.read(128)
     return zlib.adler32(chunk)
 
-def filter_duplicate_files(files):
+def filter_duplicate_files(files, top=None):
     """Finds all duplicate files in the directory."""
     duplicates = {}
-    iterations = [(os.path.getsize, "By Size"),
-                  (get_crc_key, "By CRC "),
-                  (get_hash_key, "By Hash")]
+    iterations = ((os.path.getsize, "By Size", top**3 if top else None),
+                  (get_crc_key, "By CRC ", top**2 if top else None),
+                  (get_hash_key, "By Hash", None))
     
-    for keyfunction, name in iterations:
+    for keyfunction, name, topcount in iterations:
         duplicates.clear()
         count = 0
         duplicate_count = 0
@@ -95,22 +104,23 @@ def filter_duplicate_files(files):
                     
             print "\r(%s) %d Files checked, %d duplicates found (%d files)" % (name, i, duplicate_count, count),
         print ""
-        files = [filepath for filepaths in duplicates.itervalues() if len(filepaths) > 1 for filepath in filepaths]
+        sortedfiles = sorted(duplicates.itervalues(), key=len, reverse=True)
+        files = [filepath for filepaths in sortedfiles[:topcount] if len(filepaths) > 1 for filepath in filepaths]
 
     return [filelist for filelist in duplicates.itervalues() if len(filelist) > 1]
 
 def get_files(directory, include_hidden, include_empty):
     """Returns all FILES in the directory which apply to the filter rules."""
     return (os.path.join(dirpath, filename)
-             for dirpath, _, filenames in os.walk(directory)
-             for filename in filenames
+            for dirpath, _, filenames in os.walk(directory)
+            for filename in filenames
                 if not os.path.islink(os.path.join(dirpath, filename))
                 and (include_hidden or
-                     reduce(lambda r, d: r and not d.startswith("."), os.path.join(dirpath, filename).split(os.sep)[1:], True))
+                     reduce(lambda r, d: r and not d.startswith("."), os.path.abspath(os.path.join(dirpath, filename)).split(os.sep), True))
                 and (include_empty or os.path.getsize(os.path.join(dirpath, filename)) > 0))
 
 if __name__ == "__main__":
     ARGS = parse_arguments()
     FILES = get_files(ARGS.directory, ARGS.include_hidden, ARGS.include_empty)
-    DUPLICATES = filter_duplicate_files(FILES)
+    DUPLICATES = filter_duplicate_files(FILES, ARGS.top if ARGS.fast else None)
     print_duplicates(DUPLICATES, ARGS.top)
