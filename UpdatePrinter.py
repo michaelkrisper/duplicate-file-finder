@@ -2,7 +2,7 @@ import sys
 import time
 
 class UpdatePrinter(object):
-    def __init__(self, refreshrate=0.01):
+    def __init__(self, refreshrate=0.05):
         self.__last = 0
         self.__last_text_length = 0
         self.refreshrate = refreshrate

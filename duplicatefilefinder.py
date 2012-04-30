@@ -12,7 +12,7 @@ __author__ = "Michael Krisper"
 __copyright__ = "Copyright 2012, Michael Krisper"
 __credits__ = ["Michael Krisper"]
 __license__ = "GPL"
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 __maintainer__ = "Michael Krisper"
 __email__ = "michael.krisper@gmail.com"
 __status__ = "Production"
@@ -22,7 +22,7 @@ def parse_arguments():
 
     epilog = """EXAMPLES:
     (1) %(prog)s ~/Downloads
-        Description: Searches the Downloads directory for duplicate FILES and displays the top 10.
+        Description: Searches the Downloads directory for duplicate files and displays the top 3 duplicates (with the most files).
 
     (2) %(prog)s ~/Downloads -top 3
         Description: Searches duplicates, but only displays the top 3 most duplicates
@@ -34,24 +34,21 @@ def parse_arguments():
         Description: Searches duplicates and displays ALL results
 
     (5) %(prog)s ~/Downloads --hidden --empty
-        Description: Searches duplicates and also include hidden or empty FILES
+        Description: Searches duplicates and also include hidden or empty files
     """
 
     parser = argparse.ArgumentParser(description=__doc__, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument(dest="directory", help="the directory which should be checked for duplicate FILES")
+    parser.add_argument(dest="directory", help="the directory which should be checked for duplicate files")
+    parser.add_argument("-fast", dest="fast", action="store_true", 
+                        help="Searches very fast for only for the top X duplicates. The fast check may return less than the \
+                        top X, even if they would exist. Remarks: the fast option is useless when -a is given.")
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("-a", dest="show_all", action="store_true", help="display all duplicate FILES. equal to -top 0")
-    group.add_argument("-top", dest="top", action="store", metavar="X", default=10, type=int,  
+    group.add_argument("-a", dest="show_all", action="store_true", help="display all duplicate files. equal to -top 0")
+    group.add_argument("-top", dest="top", action="store", metavar="X", default=3, type=int,  
                        help="set the amount of displayed duplicates. If 0 is given, all results will be displayed. default=10")
-    
-    parser.add_argument("--hidden", dest="include_hidden", action="store_true", help="check hidden FILES and directories too")
-    parser.add_argument("--empty", dest="include_empty", action="store_true", help="check empty FILES too")
-    parser.add_argument("--fast", dest="fast", action="store_true", 
-                        help="Searches very fast for only for the top X duplicates. The fast check may return less than the top X, even if they would exist. Remarks: the --fast option is useless when -a is given.")
-
-
+    parser.add_argument("--hidden", dest="include_hidden", action="store_true", help="check hidden files and hidden directories too")
+    parser.add_argument("--empty", dest="include_empty", action="store_true", help="check empty files too")
     args = parser.parse_args()
-
     if args.show_all or args.top == 0:
         args.top = None
 
@@ -66,9 +63,6 @@ def print_duplicates(files, displaycount=None):
             (pos, len(paths), os.path.getsize(paths[0]), prefix)
         for i, path in enumerate(sorted(paths), start=1):
             print "%2d: %s" % (i, path[len(prefix) + 1:])
-
-    print "\nFound %d duplicates (%d duplicate files total)" % \
-        (len(files), reduce(lambda sumValue, files: sumValue + len(files), files, 0))
 
 def get_hash_key(filename):
     """Calculates the hash value for a file."""
@@ -96,6 +90,7 @@ def filter_duplicate_files(files, top=None):
         duplicates.clear()
         count = 0
         duplicate_count = 0
+        i = 0
         for i, filepath in enumerate(files, start=1):
             key = keyfunction(filepath)
             duplicates.setdefault(key, []).append(filepath)
@@ -106,9 +101,11 @@ def filter_duplicate_files(files, top=None):
                     duplicate_count += 1
                     
             update("\r(%s) %d Files checked, %d duplicates found (%d files)" % (name, i, duplicate_count, count))
+        else:
+            update("\r(%s) %d Files checked, %d duplicates found (%d files)" % (name, i, duplicate_count, count), force=True)
         print ""
         sortedfiles = sorted(duplicates.itervalues(), key=len, reverse=True)
-        files = [filepath for filepaths in sortedfiles[:topcount] if len(filepaths) > 1 for filepath in filepaths]
+        files = [filepath for filepaths in sortedfiles[:topcount] if len(filepaths) > 1 for filepath in filepaths]    
 
     return [filelist for filelist in duplicates.itervalues() if len(filelist) > 1]
 
@@ -127,3 +124,10 @@ if __name__ == "__main__":
     FILES = get_files(ARGS.directory, ARGS.include_hidden, ARGS.include_empty)
     DUPLICATES = filter_duplicate_files(FILES, ARGS.top if ARGS.fast else None)
     print_duplicates(DUPLICATES, ARGS.top)
+    
+    if ARGS.fast:
+        print "\nFound %d duplicates at least (%d duplicate files total) -- More duplicates may exist." % \
+            (len(DUPLICATES), reduce(lambda sumValue, files: sumValue + len(files), DUPLICATES, 0))
+    else:
+        print "\nFound %d duplicates (%d duplicate files total)" % \
+            (len(DUPLICATES), reduce(lambda sumValue, files: sumValue + len(files), DUPLICATES, 0))
