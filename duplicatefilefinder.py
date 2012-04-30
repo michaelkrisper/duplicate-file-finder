@@ -11,7 +11,7 @@ __author__ = "Michael Krisper"
 __copyright__ = "Copyright 2012, Michael Krisper"
 __credits__ = ["Michael Krisper"]
 __license__ = "GPL"
-__version__ = "1.2.1"
+__version__ = "1.3.0"
 __maintainer__ = "Michael Krisper"
 __email__ = "michael.krisper@gmail.com"
 __status__ = "Production"
@@ -26,14 +26,15 @@ def parse_arguments():
     (2) %(prog)s ~/Downloads -top 3
         Description: Searches duplicates, but only displays the top 3 most duplicates
 
-    (3) %(prog)s ~/Downloads -a
+    (3) %(prog)s ~/Downloads -top 3 --fast 
+        Description: Searches for the top 3 duplicates. May eventually get less than 3 results, even if they would exist.
+
+    (4) %(prog)s ~/Downloads -a
         Description: Searches duplicates and displays ALL results
 
-    (4) %(prog)s ~/Downloads --hidden --empty
+    (5) %(prog)s ~/Downloads --hidden --empty
         Description: Searches duplicates and also include hidden or empty FILES
-
-    (5) %(prog)s ~/Downloads -top 3 --fast 
-        Description: Searches for the top 3 duplicates. May get less than 3 results, even if they exist."""
+    """
 
     parser = argparse.ArgumentParser(description=__doc__, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(dest="directory", help="the directory which should be checked for duplicate FILES")
@@ -85,8 +86,8 @@ def get_crc_key(filename):
 def filter_duplicate_files(files, top=None):
     """Finds all duplicate files in the directory."""
     duplicates = {}
-    iterations = ((os.path.getsize, "By Size", top**3 if top else None),
-                  (get_crc_key, "By CRC ", top**2 if top else None),
+    iterations = ((os.path.getsize, "By Size", top**2 if top else None),
+                  (get_crc_key, "By CRC ", top*2 if top else None),
                   (get_hash_key, "By Hash", None))
     
     for keyfunction, name, topcount in iterations:
