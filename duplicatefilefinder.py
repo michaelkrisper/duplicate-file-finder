@@ -80,14 +80,14 @@ def get_hash_key(filename):
 def get_crc_key(filename):
     """Calculates the crc value for a file."""
     with open(filename, 'rb') as inputfile:
-        chunk = inputfile.read(128)
+        chunk = inputfile.read(1024)
     return zlib.adler32(chunk)
 
 def filter_duplicate_files(files, top=None):
     """Finds all duplicate files in the directory."""
     duplicates = {}
-    iterations = ((os.path.getsize, "By Size", top**2 if top else None),
-                  (get_crc_key, "By CRC ", top*2 if top else None),
+    iterations = ((os.path.getsize, "By Size", top**2 if top else None),  # top * top <-- this could be performance optimized further by top*3 or top*4
+                  (get_crc_key, "By CRC ", top*2 if top else None),       # top * 2
                   (get_hash_key, "By Hash", None))
     
     for keyfunction, name, topcount in iterations:
