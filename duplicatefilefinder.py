@@ -5,12 +5,13 @@
 import os
 import argparse
 import hashlib
+import zlib
 
 __author__ = "Michael Krisper"
 __copyright__ = "Copyright 2012, Michael Krisper"
 __credits__ = ["Michael Krisper"]
 __license__ = "GPL"
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 __maintainer__ = "Michael Krisper"
 __email__ = "michael.krisper@gmail.com"
 __status__ = "Production"
@@ -35,10 +36,16 @@ def parse_arguments():
     parser.add_argument(dest="directory", help="the directory which should be checked for duplicate FILES")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-a", dest="show_all", action="store_true", help="display all duplicate FILES. equal to -top 0")
-    group.add_argument("-top", dest="top", action="store", metavar="COUNT", type=int, default=10, help="set the amount of displayed duplicates. If 0 is given, all results will be displayed. default=10")
+    group.add_argument("-top", dest="top", action="store", metavar="COUNT", default=10, type=int,  
+                       help="set the amount of displayed duplicates. If 0 is given, all results will be displayed. default=10")
     parser.add_argument("--hidden", dest="include_hidden", action="store_true", help="check hidden FILES and directories too")
     parser.add_argument("--empty", dest="include_empty", action="store_true", help="check empty FILES too")
-    return parser.parse_args()
+    ARGS = parser.parse_args()
+
+    if ARGS.show_all or ARGS.top == 0:
+        ARGS.top = None
+
+    return ARGS
 
 def print_duplicates(files, displaycount=None):
     """Prints a list of duplicates."""
@@ -60,10 +67,20 @@ def get_hash_key(filename):
             hash_object.update(chunk)
     return hash_object.digest()
 
+def get_crc_key(filename):
+    """Calculates the crc value for a file."""
+    with open(filename, 'rb') as inputfile:
+        chunk = inputfile.read(128)
+    return zlib.adler32(chunk)
+
 def filter_duplicate_files(files):
     """Finds all duplicate files in the directory."""
     duplicates = {}
-    for keyfunction, name in [(os.path.getsize, "By File Size"), (get_hash_key, "By File Hash")]:
+    iterations = [(os.path.getsize, "By Size"),
+                  (get_crc_key, "By CRC "),
+                  (get_hash_key, "By Hash")]
+    
+    for keyfunction, name in iterations:
         duplicates.clear()
         count = 0
         duplicate_count = 0
@@ -72,11 +89,11 @@ def filter_duplicate_files(files):
             duplicates.setdefault(key, []).append(filepath)
             if len(duplicates[key]) > 1:
                 count += 1
-                duplicate_count += 1
                 if len(duplicates[key]) == 2:
                     count += 1
+                    duplicate_count += 1
                     
-            print "\r(%s) %d Files checked, %d duplicates found (%d duplicate files)" % (name, i, duplicate_count, count),
+            print "\r(%s) %d Files checked, %d duplicates found (%d files)" % (name, i, duplicate_count, count),
         print ""
         files = [filepath for filepaths in duplicates.itervalues() if len(filepaths) > 1 for filepath in filepaths]
 
@@ -96,8 +113,4 @@ if __name__ == "__main__":
     ARGS = parse_arguments()
     FILES = get_files(ARGS.directory, ARGS.include_hidden, ARGS.include_empty)
     DUPLICATES = filter_duplicate_files(FILES)
-
-    if ARGS.show_all or ARGS.top == 0:
-        print_duplicates(DUPLICATES)
-    else:
-        print_duplicates(DUPLICATES, ARGS.top)
+    print_duplicates(DUPLICATES, ARGS.top)
