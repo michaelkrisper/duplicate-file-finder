@@ -16,6 +16,7 @@ __version__ = "1.3.1"
 __maintainer__ = "Michael Krisper"
 __email__ = "michael.krisper@gmail.com"
 __status__ = "Production"
+__python_version__ = "2.7.3"
 
 def parse_arguments():
     """ Parses the Arguments """
