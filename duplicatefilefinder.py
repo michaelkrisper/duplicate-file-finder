@@ -100,7 +100,7 @@ def filter_duplicate_files(files, top=None):
                 if len(duplicates[key]) == 2:
                     count += 1
                     duplicate_count += 1
-                    
+
             update("\r(%s) %d Files checked, %d duplicates found (%d files)" % (name, i, duplicate_count, count))
         else:
             update("\r(%s) %d Files checked, %d duplicates found (%d files)" % (name, i, duplicate_count, count), force=True)

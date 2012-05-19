@@ -3,7 +3,7 @@ This is a python script to find duplicate files in a directory structure. For op
 
 1. Group by file size
 2. Group by adler32-CRC of the first 1024 Bytes
-3. Group by md5-hash
+3. Group by sha256-hash
 
 After the whole directory structure is searched, duplicate files are displayed.
 
