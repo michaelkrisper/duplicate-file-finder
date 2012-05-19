@@ -67,7 +67,7 @@ def print_duplicates(files, displaycount=None):
 
 def get_hash_key(filename):
     """Calculates the hash value for a file."""
-    hash_object = hashlib.md5()
+    hash_object = hashlib.sha256()
     with open(filename, 'rb') as inputfile:
         for chunk in iter(lambda:inputfile.read(1024 * 8), ""):
             hash_object.update(chunk)
