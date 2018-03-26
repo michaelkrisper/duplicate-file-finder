@@ -24,7 +24,7 @@ After the whole directory structure is searched, duplicate files are displayed.
 	  --hidden    check hidden FILES and directories too
 	  --empty     check empty FILES too
 
-##EXAMPLES:
+## EXAMPLES:
     (1) duplicatefilefinder.py ~/Downloads
         Description: Searches the Downloads directory for duplicate FILES and displays the top 3 duplicates (with the most files).
 	
@@ -40,7 +40,7 @@ After the whole directory structure is searched, duplicate files are displayed.
     (5) duplicatefilefinder.py ~/Downloads --hidden --empty
         Description: Searches duplicates and also include hidden or empty FILES
 	
-##Sample Output:
+## Sample Output:
 	duplicatefilefinder.py . -fast --empty
 	(By Size) 24 Files checked, 1 duplicates found (2 files) 
 	(By CRC ) 2 Files checked, 1 duplicates found (2 files)  
