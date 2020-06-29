@@ -12,7 +12,7 @@ class UpdatePrinter(object):
         """Updates the last line on the console. Overwrites previous output made with 
         this method. Has a mechanism which prevents flickering. Use the force parameter to enforce output."""
         if ((time.time() - self.__last) >= self.refreshrate) or force:
-            print "\r%s%s" % (value, " " * (self.__last_text_length - len(value))),
+            print("\r%s%s" % (value, " " * (self.__last_text_length - len(value))))
             self.__last_text_length = len(value)
             if flush:
                 sys.stdout.flush()
@@ -20,11 +20,11 @@ class UpdatePrinter(object):
 
 if __name__ == "__main__":
     PRINTER = UpdatePrinter()
-    print "This is the NicePrinter."
+    print("This is the NicePrinter.")
     i = 1
     for i in range(50, 0, -1):
         PRINTER.update("Printing a's from 50 to 1: %s" % ("a" * i))
         time.sleep(0.1)
     else:
         PRINTER.update("Printing a's from 50 to 1: %s" % ("a" * i), force=True)
-    print "\nAnd this is the next output!"
+    print("\nAnd this is the next output!")
