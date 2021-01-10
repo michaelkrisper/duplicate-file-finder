@@ -45,6 +45,8 @@ def parse_arguments():
     parser.add_argument("-fast", dest="fast", action="store_true", 
                         help="Searches very fast for only for the top X duplicates. The fast check may return less than the \
                         top X, even if they would exist. Remarks: the fast option is useless when -a is given.")
+    parser.add_argument("-delete", dest="delete_old", action="store_true", 
+                        help="whether the older duplicate files")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-a", dest="show_all", action="store_true", help="display all duplicate files. equal to -top 0")
     group.add_argument("-top", dest="top", action="store", metavar="X", default=3, type=int,  
@@ -54,18 +56,35 @@ def parse_arguments():
     args = parser.parse_args()
     if args.show_all or args.top == 0:
         args.top = None
+    if args.delete_old:
+        print("Will delete older duplicates")
 
     return args
 
 def print_duplicates(files, displaycount=None):
     """Prints a list of duplicates."""
-    sortedfiles = sorted(files, key=lambda x: (len(x), os.path.getsize(x[0])), reverse=True)
+    sortedfiles = sorted(files, key=lambda x: os.path.getsize(x[0]), reverse=True)
+    #sortedfiles = sorted(files, key=lambda x: (len(x), os.path.getsize(x[0])), reverse=True)
     for pos, paths in enumerate(sortedfiles[:displaycount], start=1):
         prefix = os.path.dirname(os.path.commonprefix(paths))
         print("\n(%d) Found %d duplicate files (size: %d Bytes) in %s/:" % \
             (pos, len(paths), os.path.getsize(paths[0]), prefix))
         for i, path in enumerate(sorted(paths), start=1):
             print("%2d: %s" % (i, path[len(prefix) + 1:]))
+
+def delete_duplicates(files, delete=False):
+    """Prints a list of duplicates."""
+    if delete:
+        sortedfiles = sorted(files, key=lambda x: os.path.getsize(x[0]), reverse=True)
+        #sortedfiles = sorted(files, key=lambda x: (len(x), os.path.getsize(x[0])), reverse=True)
+        for pos, paths in enumerate(sortedfiles, start=1):
+            prefix = os.path.dirname(os.path.commonprefix(paths))
+            print("\n(%d) Found %d duplicate files (size: %d Bytes) in %s/:" % \
+                (pos, len(paths), os.path.getsize(paths[0]), prefix))
+            sortedpaths = sorted(paths, key=lambda x: os.path.getmtime(x), reverse=True)  
+            for path in sortedpaths[1:]:
+                print("deleting: %s" % (path[len(prefix) + 1:]))
+                os.remove(path)
 
 def get_hash_key(filename):
     """Calculates the hash value for a file."""
@@ -128,7 +147,7 @@ if __name__ == "__main__":
     FILES = get_files(ARGS.directory, ARGS.include_hidden, ARGS.include_empty)
     DUPLICATES = filter_duplicate_files(FILES, ARGS.top if ARGS.fast else None)
     print_duplicates(DUPLICATES, ARGS.top)
-    
+    delete_duplicates(DUPLICATES, ARGS.delete_old)
     if ARGS.fast:
         print("\nFound %d duplicates at least (%d duplicate files total) -- More duplicates may exist." % \
             (len(DUPLICATES), reduce(lambda sumValue, files: sumValue + len(files), DUPLICATES, 0)))
