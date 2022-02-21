@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 # -*- coding: UTF-8 -*-
 """Module for traversing a directory structure, finding duplicate FILES and displaying them, but does NOT delete them."""
 
