@@ -49,6 +49,8 @@ def parse_arguments():
                        help="set the amount of displayed duplicates. If 0 is given, all results will be displayed. default=10")
     parser.add_argument("--hidden", dest="include_hidden", action="store_true", help="check hidden files and hidden directories too")
     parser.add_argument("--empty", dest="include_empty", action="store_true", help="check empty files too")
+    group.add_argument("--min-file-size", dest="min_file_size", action="store", default=1, type=int,
+                       help="set the file filter so that file must be at least min-file-size to be examined, defaults to 1")
     args = parser.parse_args()
     if args.show_all or args.top == 0:
         args.top = None
@@ -110,7 +112,7 @@ def filter_duplicate_files(files, top=None):
 
     return [filelist for filelist in duplicates.itervalues() if len(filelist) > 1]
 
-def get_files(directory, include_hidden, include_empty):
+def get_files(directory, include_hidden, min_file_size=1):
     """Returns all FILES in the directory which apply to the filter rules."""
     return (os.path.join(dirpath, filename)
             for dirpath, _, filenames in os.walk(directory)
@@ -118,11 +120,14 @@ def get_files(directory, include_hidden, include_empty):
                 if not os.path.islink(os.path.join(dirpath, filename))
                 and (include_hidden or
                      reduce(lambda r, d: r and not d.startswith("."), os.path.abspath(os.path.join(dirpath, filename)).split(os.sep), True))
-                and (include_empty or os.path.getsize(os.path.join(dirpath, filename)) > 0))
+                and (os.path.getsize(os.path.join(dirpath, filename)) >= min_file_size))
 
 if __name__ == "__main__":
     ARGS = parse_arguments()
     FILES = get_files(ARGS.directory, ARGS.include_hidden, ARGS.include_empty)
+    if ARGS.include_empty:
+        ARGS.min_file_size = 0
+    FILES = get_files(ARGS.directory, ARGS.include_hidden, ARGS.min_file_size)
     DUPLICATES = filter_duplicate_files(FILES, ARGS.top if ARGS.fast else None)
     print_duplicates(DUPLICATES, ARGS.top)
     
