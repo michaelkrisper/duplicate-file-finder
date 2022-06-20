@@ -57,11 +57,13 @@ def parse_arguments():
 
 def print_duplicates(files, displaycount=None):
     """Prints a list of duplicates."""
-    sortedfiles = sorted(files, key=lambda x: (len(x), os.path.getsize(x[0])), reverse=True)
-    for pos, paths in enumerate(sortedfiles[:displaycount], start=1):
+    sortedfiles = sorted(files, key=lambda x: (len(x[1]), os.path.getsize(x[1][0])), reverse=True)
+    for pos, entry in enumerate(sortedfiles[:displaycount], start=1):
+        checksum, paths = entry
+        checksum = checksum.encode('hex')
         prefix = os.path.dirname(os.path.commonprefix(paths))
-        print "\n(%d) Found %d duplicate files (size: %d Bytes) in %s/:" % \
-            (pos, len(paths), os.path.getsize(paths[0]), prefix)
+        print "\n(%d) Found %d duplicate files (size: %d Bytes, sha256 %r) in %s/:" % \
+            (pos, len(paths), os.path.getsize(paths[0]), checksum, prefix)
         for i, path in enumerate(sorted(paths), start=1):
             print "%2d: %s" % (i, path[len(prefix) + 1:])
 
@@ -108,7 +110,7 @@ def filter_duplicate_files(files, top=None):
         sortedfiles = sorted(duplicates.itervalues(), key=len, reverse=True)
         files = [filepath for filepaths in sortedfiles[:topcount] if len(filepaths) > 1 for filepath in filepaths]    
 
-    return [filelist for filelist in duplicates.itervalues() if len(filelist) > 1]
+    return [(checksum, duplicates[checksum]) for checksum in duplicates if len(duplicates[checksum]) > 1]
 
 def get_files(directory, include_hidden, include_empty):
     """Returns all FILES in the directory which apply to the filter rules."""
