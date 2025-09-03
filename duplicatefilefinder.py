@@ -50,7 +50,7 @@ def parse_arguments():
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-a", dest="show_all", action="store_true", help="display all duplicate files. equal to -top 0")
     group.add_argument("-top", dest="top", action="store", metavar="X", default=3, type=int,
-                       help="set the amount of displayed duplicates. If 0 is given, all results will be displayed. default=10")
+                       help="set the amount of displayed duplicates. If 0 is given, all results will be displayed. default=3")
     parser.add_argument("--hidden", dest="include_hidden", action="store_true", help="check hidden files and hidden directories too")
     parser.add_argument("--empty", dest="include_empty", action="store_true", help="check empty files too")
     group.add_argument("--min-file-size", dest="min_file_size", action="store", default=1, type=int,
