@@ -3,19 +3,20 @@ import time
 
 class UpdatePrinter(object):
     """Class for printing nice status output on the console."""
-    def __init__(self, refreshrate=0.05):
+    def __init__(self, refreshrate=0.05, stream=sys.stdout):
         self.__last = 0
         self.__last_text_length = 0
         self.refreshrate = refreshrate
+        self.stream = stream
 
     def update(self, value, force=False, flush=True):
         """Updates the last line on the console. Overwrites previous output made with 
         this method. Has a mechanism which prevents flickering. Use the force parameter to enforce output."""
         if ((time.time() - self.__last) >= self.refreshrate) or force:
-            print("\r%s%s" % (value, " " * (self.__last_text_length - len(value))), end=' ')
+            print("\r%s%s" % (value, " " * (self.__last_text_length - len(value))), end=' ', file=self.stream)
             self.__last_text_length = len(value)
             if flush:
-                sys.stdout.flush()
+                self.stream.flush()
             self.__last = time.time()
 
 if __name__ == "__main__":
