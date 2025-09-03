@@ -1,0 +1,48 @@
+
+Ok - some possible fixes/changes for you.
+
+- changed it from -
+
+    #!/usr/bin/env python
+
+    to
+
+    #!/usr/bin/env python3
+
+
+    My system still has python ==> python2... perhaps old, whatever.
+
+- the default scan type is -fast. Except... it's not, you always do both. The guilty lines are:
+
+    if method == "fast":
+        iterations.append((partial(get_hash_key, partial=True), "By Partial Hash", top*2 if top else None))
+    iterations.append((get_hash_key, "By Full Hash", None))
+
+    
+    This also causes the hashes to be wrong if --fast is chosen (well, it'll calc once as partial, then again as full.
+
+- Made "thorough" the default. Debatable, but unless you're doing mega amounts of files, --fast doesn't give you all that much given the new speed increases. And personally I wouldn't trust --fast for much of anything. YMMV :)
+
+  I could almost see the --fast option being useful if you could choose the chunk size... not a big deal, code-wise, but not going to do that now since you've hardcoded 1024 around. But the first time I ran this 
+
+- gave all the args short versions... and changed -fast to --fast. E.g. "-e" and "--empty", etc. I'd never use the longer ones if I could help it!
+
+- killed the "--method" option (bonus - this frees -m for --min-file-size :)). You have a --fast option already... I never understood why one might specify the default (obv this is the same if you only had --thorough or w/e as an option and "fast" as the default.)
+
+- Merged UpdatePrinter.py into main program. I think it's less than 20 lines, and allows you to put the file whereever (/usr/local/bin, etc.)
+
+- changed the output to be full pathname vs. relative... less of an issue before, but now with multiple directories...! Even with a single dir checked, it's more useful this way, IMHO.
+
+    E.g.:
+
+    (1) Found 78 duplicate files (size: 11 Bytes, sha256 'b52b2e3af158a92b294e60451fa6aaf7e77e65e5ba3a57868545d044091bed1a') in ../../tmp/:
+     1: cm3/client_sync/t/files/azsync/bucket.bad.404-file/VERSION
+    [....]
+
+    To:
+
+    (1) Found 78 duplicate files (size: 11 Bytes, sha256 'b52b2e3af158a92b294e60451fa6aaf7e77e65e5ba3a57868545d044091bed1a') in ../../tmp/:
+     1: ../../tmp/cm3/client_sync/t/files/azsync/bucket.bad.404-file/VERSION
+    [....]
+
+
