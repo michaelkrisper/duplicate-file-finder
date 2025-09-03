@@ -7,18 +7,7 @@ import argparse
 import hashlib
 import sys
 import time
-
 from functools import partial, reduce
-
-__author__ = "Michael Krisper"
-__copyright__ = "Copyright 2012, Michael Krisper"
-__credits__ = ["Michael Krisper"]
-__license__ = "GPL"
-__version__ = "1.3.1"
-__maintainer__ = "Michael Krisper"
-__email__ = "michael.krisper@gmail.com"
-__status__ = "Production"
-__python_version__ = "3.x"
 
 def parse_arguments():
     """ Parses the Arguments """
