@@ -9,10 +9,9 @@ After the whole directory structure is searched, duplicate files are displayed.
 
 ## Usage:
 	usage: duplicatefilefinder.py [-h] [-fast] [--delete] [--script-friendly]
-	                              [--method {fast,thorough}] [-a] [-top X]
-	                              [--hidden] [--empty]
+	                              [-a] [-top X] [--hidden] [--empty]
 	                              [--min-file-size MIN_FILE_SIZE]
-	                              directory
+	                              one-or-more-directories
 
 	positional arguments:
 	  directory             the directory which should be checked for duplicate
@@ -23,11 +22,10 @@ After the whole directory structure is searched, duplicate files are displayed.
 	  -fast                 Enables a faster but less thorough search by pruning
 	                        files between comparison stages. May result in fewer
 	                        duplicates being found than actually exist. Ineffective
-	                        when used with -a.
+	                        when used with -a. Note: the default is doing a hash 
+                            of the entire file.
 	  --delete              delete older duplicate files
 	  --script-friendly     use machine-readable output
-	  --method {fast,thorough}
-	                        Comparison method
 	  -a                    display all duplicate files. equal to -top 0
 	  -top X                set the amount of displayed duplicates. If 0 is given,
 	                        all results will be displayed. default=3
@@ -58,9 +56,6 @@ After the whole directory structure is searched, duplicate files are displayed.
 
     (7) duplicatefilefinder.py ~/Downloads --script-friendly
         Description: Searches duplicates and prints them in a machine-readable format.
-
-    (8) duplicatefilefinder.py ~/Downloads --method thorough
-        Description: Searches duplicates using a more thorough (and slower) comparison method.
 
     (9) duplicatefilefinder.py ~/Downloads --min-file-size 1024
         Description: Searches duplicates but only considers files that are at least 1024 bytes in size.
