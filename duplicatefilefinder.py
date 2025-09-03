@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import zlib
 import UpdatePrinter
+from functools import reduce
 
 __author__ = "Michael Krisper"
 __copyright__ = "Copyright 2012, Michael Krisper"
@@ -16,7 +17,7 @@ __version__ = "1.3.1"
 __maintainer__ = "Michael Krisper"
 __email__ = "michael.krisper@gmail.com"
 __status__ = "Production"
-__python_version__ = "2.7.3"
+__python_version__ = "3.x"
 
 def parse_arguments():
     """ Parses the Arguments """
@@ -43,6 +44,7 @@ def parse_arguments():
     parser.add_argument("-fast", dest="fast", action="store_true", 
                         help="Searches very fast for only for the top X duplicates. The fast check may return less than the \
                         top X, even if they would exist. Remarks: the fast option is useless when -a is given.")
+    parser.add_argument("--delete", dest="delete_old", action="store_true", help="delete older duplicate files")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-a", dest="show_all", action="store_true", help="display all duplicate files. equal to -top 0")
     group.add_argument("-top", dest="top", action="store", metavar="X", default=3, type=int,  
@@ -62,18 +64,26 @@ def print_duplicates(files, displaycount=None):
     sortedfiles = sorted(files, key=lambda x: (len(x[1]), os.path.getsize(x[1][0])), reverse=True)
     for pos, entry in enumerate(sortedfiles[:displaycount], start=1):
         checksum, paths = entry
-        checksum = checksum.encode('hex')
+        checksum = checksum.hex()
         prefix = os.path.dirname(os.path.commonprefix(paths))
-        print "\n(%d) Found %d duplicate files (size: %d Bytes, sha256 %r) in %s/:" % \
-            (pos, len(paths), os.path.getsize(paths[0]), checksum, prefix)
+        print("\n(%d) Found %d duplicate files (size: %d Bytes, sha256 %r) in %s/:" % \
+            (pos, len(paths), os.path.getsize(paths[0]), checksum, prefix))
         for i, path in enumerate(sorted(paths), start=1):
-            print "%2d: %s" % (i, path[len(prefix) + 1:])
+            print("%2d: %s" % (i, path[len(prefix) + 1:]))
+
+def delete_duplicates(files):
+    """Deletes older duplicate files."""
+    for checksum, paths in files:
+        sortedpaths = sorted(paths, key=lambda x: os.path.getmtime(x), reverse=True)
+        for path in sortedpaths[1:]:
+            print("deleting: %s" % path)
+            os.remove(path)
 
 def get_hash_key(filename):
     """Calculates the hash value for a file."""
     hash_object = hashlib.sha256()
     with open(filename, 'rb') as inputfile:
-        for chunk in iter(lambda:inputfile.read(1024 * 8), ""):
+        for chunk in iter(lambda:inputfile.read(1024 * 8), b""):
             hash_object.update(chunk)
     return hash_object.digest()
 
@@ -108,8 +118,8 @@ def filter_duplicate_files(files, top=None):
             update("\r(%s) %d Files checked, %d duplicates found (%d files)" % (name, i, duplicate_count, count))
         else:
             update("\r(%s) %d Files checked, %d duplicates found (%d files)" % (name, i, duplicate_count, count), force=True)
-        print ""
-        sortedfiles = sorted(duplicates.itervalues(), key=len, reverse=True)
+        print("")
+        sortedfiles = sorted(duplicates.values(), key=len, reverse=True)
         files = [filepath for filepaths in sortedfiles[:topcount] if len(filepaths) > 1 for filepath in filepaths]    
 
     return [(checksum, duplicates[checksum]) for checksum in duplicates if len(duplicates[checksum]) > 1]
@@ -133,9 +143,12 @@ if __name__ == "__main__":
     DUPLICATES = filter_duplicate_files(FILES, ARGS.top if ARGS.fast else None)
     print_duplicates(DUPLICATES, ARGS.top)
     
+    if ARGS.delete_old:
+        delete_duplicates(DUPLICATES)
+
     if ARGS.fast:
-        print "\nFound %d duplicates at least (%d duplicate files total) -- More duplicates may exist." % \
-            (len(DUPLICATES), reduce(lambda sumValue, files: sumValue + len(files), DUPLICATES, 0))
+        print("\nFound %d duplicates at least (%d duplicate files total) -- More duplicates may exist." % \
+            (len(DUPLICATES), reduce(lambda sum_value, files: sum_value + len(files[1]), DUPLICATES, 0)))
     else:
-        print "\nFound %d duplicates (%d duplicate files total)" % \
-            (len(DUPLICATES), reduce(lambda sumValue, files: sumValue + len(files), DUPLICATES, 0))
+        print("\nFound %d duplicates (%d duplicate files total)" % \
+            (len(DUPLICATES), reduce(lambda sum_value, files: sum_value + len(files[1]), DUPLICATES, 0)))
