@@ -3,6 +3,7 @@
 """Module for traversing a directory structure, finding duplicate FILES and displaying them, but does NOT delete them."""
 
 import os
+import sys
 import argparse
 import hashlib
 import zlib
@@ -40,13 +41,17 @@ def parse_arguments():
 
     parser = argparse.ArgumentParser(description=__doc__, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(dest="directory", help="the directory which should be checked for duplicate files")
-    parser.add_argument("-fast", dest="fast", action="store_true", 
-                        help="Searches very fast for only for the top X duplicates. The fast check may return less than the \
-                        top X, even if they would exist. Remarks: the fast option is useless when -a is given.")
+    parser.add_argument("--method", dest="method", action="store", default="fast", choices=["fast", "sha256", "full-sha256"],
+                        help="specifies the comparison method. 'fast' uses size, a crc of the first 1k and the sha256 of the whole file. \
+                        'sha256' uses the size and the sha256 of the whole file. 'full-sha256' uses only the sha256 of the whole file, which is the slowest method.")
+    parser.add_argument("--machine-readable", dest="machine_readable", action="store_true",
+                        help="print the output in a machine readable format (i.e. tab separated)")
+
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-a", dest="show_all", action="store_true", help="display all duplicate files. equal to -top 0")
-    group.add_argument("-top", dest="top", action="store", metavar="X", default=3, type=int,  
+    group.add_argument("-top", dest="top", action="store", metavar="X", default=3, type=int,
                        help="set the amount of displayed duplicates. If 0 is given, all results will be displayed. default=10")
+
     parser.add_argument("--hidden", dest="include_hidden", action="store_true", help="check hidden files and hidden directories too")
     parser.add_argument("--empty", dest="include_empty", action="store_true", help="check empty files too")
     group.add_argument("--min-file-size", dest="min_file_size", action="store", default=1, type=int,
@@ -57,17 +62,24 @@ def parse_arguments():
 
     return args
 
-def print_duplicates(files, displaycount=None):
+def print_duplicates(files, displaycount=None, machine_readable=False):
     """Prints a list of duplicates."""
     sortedfiles = sorted(files, key=lambda x: (len(x[1]), os.path.getsize(x[1][0])), reverse=True)
-    for pos, entry in enumerate(sortedfiles[:displaycount], start=1):
-        checksum, paths = entry
-        checksum = checksum.encode('hex')
-        prefix = os.path.dirname(os.path.commonprefix(paths))
-        print "\n(%d) Found %d duplicate files (size: %d Bytes, sha256 %r) in %s/:" % \
-            (pos, len(paths), os.path.getsize(paths[0]), checksum, prefix)
-        for i, path in enumerate(sorted(paths), start=1):
-            print "%2d: %s" % (i, path[len(prefix) + 1:])
+
+    if machine_readable:
+        for pos, entry in enumerate(sortedfiles[:displaycount]):
+            checksum, paths = entry
+            for path in sorted(paths):
+                print "%d\t%s" % (pos, os.path.abspath(path))
+    else:
+        for pos, entry in enumerate(sortedfiles[:displaycount], start=1):
+            checksum, paths = entry
+            checksum = checksum.encode('hex')
+            prefix = os.path.dirname(os.path.commonprefix(paths))
+            print >> sys.stderr, "\n(%d) Found %d duplicate files (size: %d Bytes, sha256 %r) in %s/:" % \
+                (pos, len(paths), os.path.getsize(paths[0]), checksum, prefix)
+            for i, path in enumerate(sorted(paths), start=1):
+                print "%2d: %s" % (i, path[len(prefix) + 1:])
 
 def get_hash_key(filename):
     """Calculates the hash value for a file."""
@@ -83,14 +95,22 @@ def get_crc_key(filename):
         chunk = inputfile.read(1024)
     return zlib.adler32(chunk)
 
-def filter_duplicate_files(files, top=None):
+def filter_duplicate_files(files, top=None, method="fast"):
     """Finds all duplicate files in the directory."""
     duplicates = {}
     update = UpdatePrinter.UpdatePrinter().update
-    iterations = ((os.path.getsize, "By Size", top**2 if top else None),  # top * top <-- this could be performance optimized further by top*3 or top*4
-                  (get_crc_key, "By CRC ", top*2 if top else None),       # top * 2
-                  (get_hash_key, "By Hash", None))
     
+    iterations = []
+    if method == "fast":
+        iterations = ((os.path.getsize, "By Size", top**2 if top else None),
+                      (get_crc_key, "By CRC ", top*2 if top else None),
+                      (get_hash_key, "By Hash", None))
+    elif method == "sha256":
+        iterations = ((os.path.getsize, "By Size", top**2 if top else None),
+                      (get_hash_key, "By Hash", None))
+    elif method == "full-sha256":
+        iterations = ((get_hash_key, "By Hash", None),)
+
     for keyfunction, name, topcount in iterations:
         duplicates.clear()
         count = 0
@@ -108,7 +128,7 @@ def filter_duplicate_files(files, top=None):
             update("\r(%s) %d Files checked, %d duplicates found (%d files)" % (name, i, duplicate_count, count))
         else:
             update("\r(%s) %d Files checked, %d duplicates found (%d files)" % (name, i, duplicate_count, count), force=True)
-        print ""
+        print >> sys.stderr, ""
         sortedfiles = sorted(duplicates.itervalues(), key=len, reverse=True)
         files = [filepath for filepaths in sortedfiles[:topcount] if len(filepaths) > 1 for filepath in filepaths]    
 
@@ -130,12 +150,12 @@ if __name__ == "__main__":
     if ARGS.include_empty:
         ARGS.min_file_size = 0
     FILES = get_files(ARGS.directory, ARGS.include_hidden, ARGS.min_file_size)
-    DUPLICATES = filter_duplicate_files(FILES, ARGS.top if ARGS.fast else None)
-    print_duplicates(DUPLICATES, ARGS.top)
-    
-    if ARGS.fast:
-        print "\nFound %d duplicates at least (%d duplicate files total) -- More duplicates may exist." % \
+    DUPLICATES = filter_duplicate_files(FILES, ARGS.top, ARGS.method)
+    print_duplicates(DUPLICATES, ARGS.top, ARGS.machine_readable)
+
+    if ARGS.method == "fast":
+        print >> sys.stderr, "\nFound %d duplicates at least (%d duplicate files total) -- More duplicates may exist." % \
             (len(DUPLICATES), reduce(lambda sumValue, files: sumValue + len(files), DUPLICATES, 0))
     else:
-        print "\nFound %d duplicates (%d duplicate files total)" % \
+        print >> sys.stderr, "\nFound %d duplicates (%d duplicate files total)" % \
             (len(DUPLICATES), reduce(lambda sumValue, files: sumValue + len(files), DUPLICATES, 0))
