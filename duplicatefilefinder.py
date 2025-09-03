@@ -40,7 +40,7 @@ def parse_arguments():
     group.add_argument("-a", dest="show_all", action="store_true", help="display all duplicate files. equal to -top 0")
     group.add_argument("-t", "-top", dest="top", action="store", metavar="X", default=3, type=int,
                        help="set the amount of displayed duplicates. If 0 is given, all results will be displayed. default=10")
-    parser.add_argument("--hidden", dest="include_hidden", action="store_true", help="check hidden files and hidden directories too")
+    parser.add_argument("-H", "--hidden", dest="include_hidden", action="store_true", help="check hidden files and hidden directories too")
     parser.add_argument("-e", "--empty", dest="include_empty", action="store_true", help="check empty files too")
     group.add_argument("-m", "--min-file-size", dest="min_file_size", action="store", default=1, type=int,
                        help="set the file filter so that file must be at least min-file-size to be examined, defaults to 1")
@@ -121,8 +121,7 @@ def filter_duplicate_files(files, fast, top=None):
     iterations = [(os.path.getsize, "By Size", top**2 if top else None)]
     if fast:
         iterations.append((partial(get_hash_key, partial=True), "By Partial Hash", top*2 if top else None))
-    else:
-        iterations.append((get_hash_key, "By Full Hash", None))
+    iterations.append((get_hash_key, "By Full Hash", None))
 
     for keyfunction, name, topcount in iterations:
         duplicates.clear()
