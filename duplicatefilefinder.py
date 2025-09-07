@@ -76,19 +76,29 @@ class UpdatePrinter(object):
 
 def print_duplicates_human_readable(files, displaycount=None):
     """Prints a list of duplicates in a human-readable format."""
-    sortedfiles = sorted(files, key=lambda x: (len(x[1]), os.path.getsize(x[1][0])), reverse=True)
+    try:
+        sortedfiles = sorted(files, key=lambda x: (len(x[1]), os.path.getsize(x[1][0])), reverse=True)
+    except OSError:
+        sortedfiles = sorted(files, key=lambda x: len(x[1]), reverse=True)
+
     for pos, entry in enumerate(sortedfiles[:displaycount], start=1):
-        checksum, paths = entry
-        checksum = checksum.hex()
-        prefix = os.path.dirname(os.path.commonprefix(paths))
-        print("\n(%d) Found %d duplicate files (size: %d Bytes, sha256 %r) in %s/:" % \
-            (pos, len(paths), os.path.getsize(paths[0]), checksum, prefix))
-        for i, path in enumerate(sorted(paths), start=1):
-            print("%2d: %s" % (i, path))
+        try:
+            checksum, paths = entry
+            checksum = checksum.hex()
+            prefix = os.path.dirname(os.path.commonprefix(paths))
+            print("\n(%d) Found %d duplicate files (size: %d Bytes, sha256 %r) in %s/:" % \
+                (pos, len(paths), os.path.getsize(paths[0]), checksum, prefix))
+            for i, path in enumerate(sorted(paths), start=1):
+                print("%2d: %s" % (i, path))
+        except OSError as e:
+            print("\nCould not display duplicate entry, file might have been deleted: %s" % e, file=sys.stderr)
 
 def print_duplicates_script_friendly(files, displaycount=None):
     """Prints a list of duplicates in a machine-readable format."""
-    sortedfiles = sorted(files, key=lambda x: (len(x[1]), os.path.getsize(x[1][0])), reverse=True)
+    try:
+        sortedfiles = sorted(files, key=lambda x: (len(x[1]), os.path.getsize(x[1][0])), reverse=True)
+    except OSError:
+        sortedfiles = sorted(files, key=lambda x: len(x[1]), reverse=True)
     for i, entry in enumerate(sortedfiles[:displaycount]):
         _, paths = entry
         for path in sorted(paths):
@@ -97,21 +107,31 @@ def print_duplicates_script_friendly(files, displaycount=None):
 def delete_duplicates(files):
     """Deletes older duplicate files."""
     for checksum, paths in files:
-        sortedpaths = sorted(paths, key=lambda x: os.path.getmtime(x), reverse=True)
-        for path in sortedpaths[1:]:
-            print("deleting: %s" % path, file=sys.stderr)
-            os.remove(path)
+        try:
+            sortedpaths = sorted(paths, key=lambda x: os.path.getmtime(x), reverse=True)
+            for path in sortedpaths[1:]:
+                try:
+                    print("deleting: %s" % path, file=sys.stderr)
+                    os.remove(path)
+                except OSError as e:
+                    print("could not delete file: %s" % e, file=sys.stderr)
+        except OSError as e:
+            print("could not access file for deletion: %s" % e, file=sys.stderr)
 
 def get_hash_key(filename, partial=False):
     """Calculates the hash value for a file."""
-    hash_object = hashlib.sha256()
-    with open(filename, 'rb') as inputfile:
-        if partial:
-            hash_object.update(inputfile.read(1024))
-        else:
-            for chunk in iter(lambda:inputfile.read(1024 * 8), b""):
-                hash_object.update(chunk)
-    return hash_object.digest()
+    try:
+        hash_object = hashlib.sha256()
+        with open(filename, 'rb') as inputfile:
+            if partial:
+                hash_object.update(inputfile.read(1024))
+            else:
+                for chunk in iter(lambda:inputfile.read(1024 * 8), b""):
+                    hash_object.update(chunk)
+        return hash_object.digest()
+    except OSError as e:
+        print("permission denied for file: %s" % e.filename, file=sys.stderr)
+        return None
 
 def filter_duplicate_files(files, fast, top=None):
     """Finds all duplicate files in the directory."""
@@ -130,6 +150,8 @@ def filter_duplicate_files(files, fast, top=None):
         i = 0
         for i, filepath in enumerate(files, start=1):
             key = keyfunction(filepath)
+            if key is None:
+                continue
             duplicates.setdefault(key, []).append(filepath)
             if len(duplicates[key]) > 1:
                 count += 1
@@ -146,17 +168,27 @@ def filter_duplicate_files(files, fast, top=None):
 
     return [(checksum, duplicates[checksum]) for checksum in duplicates if len(duplicates[checksum]) > 1]
 
+def on_walk_error(err):
+    """Error handler for os.walk."""
+    print("Cannot access directory '%s'. Permission denied." % err.filename, file=sys.stderr)
+
+
 def get_files(directories, include_hidden, min_file_size=1):
     """Returns all FILES in the directories which apply to the filter rules."""
     for directory in directories:
-        for dirpath, _, filenames in os.walk(directory):
+        for dirpath, _, filenames in os.walk(directory, onerror=on_walk_error):
             for filename in filenames:
-                filepath = os.path.join(dirpath, filename)
-                if (not os.path.islink(filepath)
-                    and (include_hidden or
-                         reduce(lambda r, d: r and not d.startswith("."), os.path.abspath(filepath).split(os.sep), True))
-                    and (os.path.getsize(filepath) >= min_file_size)):
-                    yield filepath
+                try:
+                    filepath = os.path.join(dirpath, filename)
+                    if (not os.path.islink(filepath)
+                        and (include_hidden or
+                             reduce(lambda r, d: r and not d.startswith("."), os.path.abspath(filepath).split(os.sep), True))
+                        and (os.path.getsize(filepath) >= min_file_size)):
+                        yield filepath
+                except OSError:
+                    # e.g. permission denied
+                    print("Cannot access file '%s'. Permission denied." % filepath, file=sys.stderr)
+                    continue
 
 if __name__ == "__main__":
     ARGS = parse_arguments()
