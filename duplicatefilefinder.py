@@ -82,7 +82,7 @@ def print_duplicates_human_readable(files, displaycount=None):
         checksum, paths = entry
         checksum = checksum.hex()
         prefix = os.path.dirname(os.path.commonprefix(paths))
-        print("\n(%d) Found %d duplicate files (size: %d Bytes, sha512_256 %r) in %s/:" % \
+        print("\n(%d) Found %d duplicate files (size: %d Bytes, sha256 %r) in %s/:" % \
             (pos, len(paths), os.path.getsize(paths[0]), checksum, prefix))
         for i, path in enumerate(sorted(paths), start=1):
             print("%2d: %s" % (i, path))
@@ -105,7 +105,7 @@ def delete_duplicates(files):
 
 def get_hash_key(filename, partial=False):
     """Calculates the hash value for a file."""
-    hash_object = hashlib.sha512_256()
+    hash_object = hashlib.sha256()
     try:
         blocksize = os.stat(filename).st_blksize
     except FileNotFoundError:
@@ -199,7 +199,7 @@ if __name__ == "__main__":
         delete_duplicates(DUPLICATES)
 
     if ARGS.fast:
-        print("\nFound %d duplicates by looking at the first few kilobytes -- danger: possible false duplicates (%d duplicate files total)" % \
+        print("\nFound %d duplicates at least (%d duplicate files total) -- More duplicates may exist." % \
             (len(DUPLICATES), reduce(lambda sum_value, files: sum_value + len(files[1]), DUPLICATES, 0)), file=sys.stderr)
     else:
         print("\nFound %d duplicates (%d duplicate files total)" % \
