@@ -1,0 +1,53 @@
+Screen {
+    layout: vertical;
+}
+
+#keys_header {
+    height: auto;
+    padding: 0 1;
+    background: $primary;
+    color: $text;
+}
+
+#sort_toolbar {
+    height: auto;
+    align: left middle;
+    padding: 0 1;
+    background: $panel;
+}
+
+#sort_toolbar Label {
+    margin: 0 1;
+}
+
+Tree {
+    height: 1fr;
+    background: $panel;
+}
+
+Button {
+    width: auto;
+    margin: 0 1;
+}
+
+ConfirmDialog {
+    align: center middle;
+}
+
+#dialog {
+    grid-size: 2;
+    grid-gutter: 1 2;
+    grid-rows: 1fr 3;
+    padding: 0 1;
+    width: 60;
+    height: 11;
+    border: thick $background 80%;
+    background: $surface;
+}
+
+#dialog_message {
+    column-span: 2;
+    height: 1fr;
+    width: 1fr;
+    content-align: center middle;
+}

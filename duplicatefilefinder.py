@@ -38,6 +38,7 @@ def parse_arguments():
     parser.add_argument("-s", "--script-friendly", dest="script_friendly", action="store_true", help="use machine-readable output")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-a", dest="show_all", action="store_true", help="display all duplicate files. equal to -top 0")
+    group.add_argument("-i", "--interactive", dest="interactive", action="store_true", help="show all duplicate files in an interactive TUI")
     group.add_argument("-t", "-top", dest="top", action="store", metavar="X", default=3, type=int,
                        help="set the amount of displayed duplicates. If 0 is given, all results will be displayed. default=10")
     parser.add_argument("-H", "--hidden", dest="include_hidden", action="store_true", help="check hidden files and hidden directories too")
@@ -165,7 +166,11 @@ if __name__ == "__main__":
     FILES = get_files(ARGS.directories, ARGS.include_hidden, ARGS.min_file_size)
     DUPLICATES = filter_duplicate_files(FILES, ARGS.fast, ARGS.top if ARGS.fast else None)
     
-    if ARGS.script_friendly:
+    if ARGS.interactive:
+        from tui import DuplicateFinderApp
+        app = DuplicateFinderApp(DUPLICATES)
+        app.run()
+    elif ARGS.script_friendly:
         print_duplicates_script_friendly(DUPLICATES, ARGS.top)
     else:
         print_duplicates_human_readable(DUPLICATES, ARGS.top)
