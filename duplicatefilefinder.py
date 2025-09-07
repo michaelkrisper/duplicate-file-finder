@@ -8,7 +8,6 @@ import hashlib
 import sys
 import time
 from functools import partial, reduce
-from multiprocessing import Pool
 
 def parse_arguments():
     """ Parses the Arguments """
@@ -106,68 +105,44 @@ def delete_duplicates(files):
 def get_hash_key(filename, partial=False):
     """Calculates the hash value for a file."""
     hash_object = hashlib.sha256()
-    try:
-        blocksize = os.stat(filename).st_blksize
-    except FileNotFoundError:
-        return hash_object.digest()
     with open(filename, 'rb') as inputfile:
         if partial:
-            hash_object.update(inputfile.read(blocksize))
+            hash_object.update(inputfile.read(1024))
         else:
-            for chunk in iter(lambda:inputfile.read(blocksize), b""):
+            for chunk in iter(lambda:inputfile.read(1024 * 8), b""):
                 hash_object.update(chunk)
     return hash_object.digest()
-
-def get_partial_hash_key(filename):
-    """Helper function to call get_hash_key with partial=True."""
-    return get_hash_key(filename, partial=True)
 
 def filter_duplicate_files(files, fast, top=None):
     """Finds all duplicate files in the directory."""
     duplicates = {}
     update = UpdatePrinter(stream=sys.stderr).update
     
-    iterations = [(os.path.getsize, "By Size", False, top**2 if top else None)]
+    iterations = [(os.path.getsize, "By Size", top**2 if top else None)]
     if fast:
-        iterations.append((get_partial_hash_key, "By Partial Hash", True, top*2 if top else None))
-    iterations.append((get_hash_key, "By Full Hash", True, None))
+        iterations.append((partial(get_hash_key, partial=True), "By Partial Hash", top*2 if top else None))
+    iterations.append((get_hash_key, "By Full Hash", None))
 
-    pool = Pool()
-    try:
-        for keyfunction, name, parallelize, topcount in iterations:
-            duplicates.clear()
-            count = 0
-            duplicate_count = 0
-            i = 0
+    for keyfunction, name, topcount in iterations:
+        duplicates.clear()
+        count = 0
+        duplicate_count = 0
+        i = 0
+        for i, filepath in enumerate(files, start=1):
+            key = keyfunction(filepath)
+            duplicates.setdefault(key, []).append(filepath)
+            if len(duplicates[key]) > 1:
+                count += 1
+                if len(duplicates[key]) == 2:
+                    count += 1
+                    duplicate_count += 1
 
-            if parallelize:
-                keys = pool.map(keyfunction, files)
-                for i, (filepath, key) in enumerate(zip(files, keys), start=1):
-                    duplicates.setdefault(key, []).append(filepath)
-                    if len(duplicates[key]) > 1:
-                        count += 1
-                        if len(duplicates[key]) == 2:
-                            count += 1
-                            duplicate_count += 1
-                    update("\r(%s) %d Files checked, %d duplicates found (%d files)" % (name, i, duplicate_count, count))
-            else:
-                for i, filepath in enumerate(files, start=1):
-                    key = keyfunction(filepath)
-                    duplicates.setdefault(key, []).append(filepath)
-                    if len(duplicates[key]) > 1:
-                        count += 1
-                        if len(duplicates[key]) == 2:
-                            count += 1
-                            duplicate_count += 1
-                    update("\r(%s) %d Files checked, %d duplicates found (%d files)" % (name, i, duplicate_count, count))
-
+            update("\r(%s) %d Files checked, %d duplicates found (%d files)" % (name, i, duplicate_count, count))
+        else:
             update("\r(%s) %d Files checked, %d duplicates found (%d files)" % (name, i, duplicate_count, count), force=True)
-            print("", file=sys.stderr)
-            sortedfiles = sorted(duplicates.values(), key=len, reverse=True)
-            files = [filepath for filepaths in sortedfiles[:topcount] if len(filepaths) > 1 for filepath in filepaths]
-    finally:
-        pool.close()
-        pool.join()
+        print("", file=sys.stderr)
+        sortedfiles = sorted(duplicates.values(), key=len, reverse=True)
+        files = [filepath for filepaths in sortedfiles[:topcount] if len(filepaths) > 1 for filepath in filepaths]
 
     return [(checksum, duplicates[checksum]) for checksum in duplicates if len(duplicates[checksum]) > 1]
 
