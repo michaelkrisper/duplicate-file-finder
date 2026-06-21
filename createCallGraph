@@ -1,0 +1,4 @@
+python2 -m cProfile -o profile.prof $@
+gprof2dot -f pstats -o callgraph.dot profile.prof
+dot -ocallgraph.png -Tpng callgraph.dot
+mirage callgraph.png

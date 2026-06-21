@@ -1,0 +1,19 @@
+INPUTFILE="$*"
+OUTPUTFILE=${INPUTFILE%.*}
+FORMAT="png"
+neato -T$FORMAT "$INPUTFILE" -o "$OUTPUTFILE-neato.png" -Goverlap=false
+echo neato file written.
+dot -T$FORMAT "$INPUTFILE" -o "$OUTPUTFILE-dot.png" -Goverlap=false
+echo dot file written.
+fdp -T$FORMAT "$INPUTFILE" -o "$OUTPUTFILE-fdp.png" -Goverlap=false
+echo fdp file written.
+sfdp -T$FORMAT "$INPUTFILE" -o "$OUTPUTFILE-sfdp.png" -Goverlap=false
+echo sfdp file written.
+twopi -T$FORMAT "$INPUTFILE" -o "$OUTPUTFILE-twopi.png" -Goverlap=false
+echo twopi file written.
+circo -T$FORMAT "$INPUTFILE" -o "$OUTPUTFILE-circo.png" -Goverlap=false
+echo circo file written.
+osage -T$FORMAT "$INPUTFILE" -o "$OUTPUTFILE-osage.png" -Goverlap=false
+echo osage file written.
+dot "$INPUTFILE" -o "$OUTPUTFILE-dot.dot" -Goverlap=false
+echo dot file written
