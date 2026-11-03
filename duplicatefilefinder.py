@@ -1,55 +1,52 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
-"""Module for traversing a directory structure, finding duplicate FILES and displaying them, but does NOT delete them."""
+"""Traverses directory structures, finds duplicate files and displays them. Files are only deleted when --delete is given."""
 
-import os
 import argparse
 import hashlib
+import os
 import sys
 import time
 from functools import partial, reduce
 
-def parse_arguments():
+
+def parse_arguments(argv=None):
     """ Parses the Arguments """
 
-    epilog = """EXAMPLES:
-    (1) %(prog)s ~/Downloads
-        Description: Searches the Downloads directory for duplicate files and displays the top 3 duplicates (with the most files).
+    epilog = """examples:
+  %(prog)s ~/Downloads
+      search Downloads and display the 3 duplicates with the most files
 
-    (2) %(prog)s ~/Downloads ~/Documents -top 3
-        Description: Searches duplicates in Downloads and Documents directories, but only displays the top 3 most duplicates
+  %(prog)s ~/Downloads ~/Documents -top 5
+      search both directories and display the 5 duplicates with the most files
 
-    (3) %(prog)s ~/Downloads ~/Documents -top 3 --fast
-        Description: Searches for the top 3 duplicates across multiple directories. May eventually get less than 3 results, even if they would exist.
+  %(prog)s ~/Downloads ~/Documents -top 3 --fast
+      quickly search for the top 3 duplicates (may return fewer than 3)
 
-    (4) %(prog)s ~/Downloads ~/Documents ~/Pictures -a
-        Description: Searches duplicates across multiple directories and displays ALL results
+  %(prog)s ~/Downloads ~/Documents ~/Pictures -a
+      search all three directories and display all duplicates
 
-    (5) %(prog)s ~/Downloads --hidden --empty
-        Description: Searches duplicates and also include hidden or empty files
-    """
+  %(prog)s ~/Downloads --hidden --empty
+      also include hidden and empty files
+"""
 
     parser = argparse.ArgumentParser(description=__doc__, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(dest="directories", nargs='+', help="one or more directories which should be checked for duplicate files")
     parser.add_argument("-f","--fast", dest="fast", action="store_true",
-                        help="Searches very fast for only for the top X duplicates. The fast check may return less than the \
-                        top X, even if they would exist. Remarks: the fast option is ignored when -a is given.")
-    parser.add_argument("-d", "--delete", dest="delete_old", action="store_true", help="delete older duplicate files")
+                        help="search only for the top X duplicates, which is much faster. May return fewer than X results, "
+                        "even if they exist. Ignored when -a is given.")
+    parser.add_argument("-d", "--delete", dest="delete_old", action="store_true",
+                        help="delete older duplicate files, keeping the newest file of each group")
     parser.add_argument("-s", "--script-friendly", dest="script_friendly", action="store_true", help="use machine-readable output")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-a", dest="show_all", action="store_true", help="display all duplicate files. equal to -top 0")
     group.add_argument("-t", "-top", dest="top", action="store", metavar="X", default=3, type=int,
-                       help="set the amount of displayed duplicates. If 0 is given, all results will be displayed. default=10")
+                       help="set the amount of displayed duplicates. If 0 is given, all results will be displayed. default=3")
     parser.add_argument("-H", "--hidden", dest="include_hidden", action="store_true", help="check hidden files and hidden directories too")
     parser.add_argument("-e", "--empty", dest="include_empty", action="store_true", help="check empty files too")
-    group.add_argument("-m", "--min-file-size", dest="min_file_size", action="store", default=1, type=int,
+    parser.add_argument("-m", "--min-file-size", dest="min_file_size", action="store", default=1, type=int,
                        help="set the file filter so that file must be at least min-file-size to be examined, defaults to 1")
-    args = parser.parse_args()
-
-    if args.fast:
-        args.fast = True
-    else:
-        args.fast = False
+    args = parser.parse_args(argv)
 
     if args.show_all or args.top == 0:
         args.top = None
@@ -137,7 +134,7 @@ def filter_duplicate_files(files, fast, top=None):
     """Finds all duplicate files in the directory."""
     duplicates = {}
     update = UpdatePrinter(stream=sys.stderr).update
-    
+
     iterations = [(os.path.getsize, "By Size", top**2 if top else None)]
     if fast:
         iterations.append((partial(get_hash_key, partial=True), "By Partial Hash", top*2 if top else None))
@@ -174,41 +171,46 @@ def on_walk_error(err):
 
 
 def get_files(directories, include_hidden, min_file_size=1):
-    """Returns all FILES in the directories which apply to the filter rules."""
+    """Returns all files in the directories which apply to the filter rules."""
     for directory in directories:
-        for dirpath, _, filenames in os.walk(directory, onerror=on_walk_error):
+        for dirpath, dirnames, filenames in os.walk(directory, onerror=on_walk_error):
+            if not include_hidden:
+                # Only names below the given directory count as hidden, not the directory's own ancestors.
+                dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+                filenames = [f for f in filenames if not f.startswith(".")]
             for filename in filenames:
                 try:
                     filepath = os.path.join(dirpath, filename)
-                    if (not os.path.islink(filepath)
-                        and (include_hidden or
-                             reduce(lambda r, d: r and not d.startswith("."), os.path.abspath(filepath).split(os.sep), True))
-                        and (os.path.getsize(filepath) >= min_file_size)):
+                    if not os.path.islink(filepath) and os.path.getsize(filepath) >= min_file_size:
                         yield filepath
                 except OSError:
                     # e.g. permission denied
                     print("Cannot access file '%s'. Permission denied." % filepath, file=sys.stderr)
                     continue
 
-if __name__ == "__main__":
-    ARGS = parse_arguments()
-    if ARGS.include_empty:
-        ARGS.min_file_size = 0
-    FILES = get_files(ARGS.directories, ARGS.include_hidden, ARGS.min_file_size)
-    DUPLICATES = filter_duplicate_files(FILES, ARGS.fast, ARGS.top if ARGS.fast else None)
-    
-    if ARGS.script_friendly:
-        print_duplicates_script_friendly(DUPLICATES, ARGS.top)
+def main(argv=None):
+    """Runs the command line interface."""
+    args = parse_arguments(argv)
+    if args.include_empty:
+        args.min_file_size = 0
+    files = get_files(args.directories, args.include_hidden, args.min_file_size)
+    duplicates = filter_duplicate_files(files, args.fast, args.top if args.fast else None)
+
+    if args.script_friendly:
+        print_duplicates_script_friendly(duplicates, args.top)
     else:
-        print_duplicates_human_readable(DUPLICATES, ARGS.top)
+        print_duplicates_human_readable(duplicates, args.top)
 
-    if ARGS.delete_old:
-        delete_duplicates(DUPLICATES)
+    if args.delete_old:
+        delete_duplicates(duplicates)
 
-    if ARGS.fast:
+    if args.fast:
         print("\nFound %d duplicates at least (%d duplicate files total) -- More duplicates may exist." % \
-            (len(DUPLICATES), reduce(lambda sum_value, files: sum_value + len(files[1]), DUPLICATES, 0)), file=sys.stderr)
+            (len(duplicates), reduce(lambda sum_value, files: sum_value + len(files[1]), duplicates, 0)), file=sys.stderr)
     else:
         print("\nFound %d duplicates (%d duplicate files total)" % \
-            (len(DUPLICATES), reduce(lambda sum_value, files: sum_value + len(files[1]), DUPLICATES, 0)), file=sys.stderr)
+            (len(duplicates), reduce(lambda sum_value, files: sum_value + len(files[1]), duplicates, 0)), file=sys.stderr)
 
+
+if __name__ == "__main__":
+    main()
