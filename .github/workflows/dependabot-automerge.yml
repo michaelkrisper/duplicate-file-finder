@@ -1,0 +1,37 @@
+name: Dependabot auto-merge
+
+# Merges Dependabot PRs once CI on the PR has passed (major updates included).
+# Without required status checks, this workflow waits for the successful CI run itself.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      startsWith(github.event.workflow_run.head_branch, 'dependabot/')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      BRANCH: ${{ github.event.workflow_run.head_branch }}
+    steps:
+      - name: Merge
+        run: |
+          set -euo pipefail
+          pr=$(gh pr list --head "$BRANCH" --state open --json number,author \
+            --jq '.[] | select(.author.login == "app/dependabot") | .number')
+          if [ -z "$pr" ]; then
+            echo "No open Dependabot PR for $BRANCH"
+            exit 0
+          fi
+          gh pr merge "$pr" --squash --match-head-commit "$SHA"
