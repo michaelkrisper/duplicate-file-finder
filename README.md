@@ -1,74 +1,109 @@
 # duplicate-file-finder
-This is a python script to find duplicate files in a directory structure. For optimal performance, files are checked in 3 iterations:
+
+Command-line tool that finds duplicate files in one or more directory trees by content.
+
+[![CI](https://github.com/michaelkrisper/duplicate-file-finder/actions/workflows/ci.yml/badge.svg)](https://github.com/michaelkrisper/duplicate-file-finder/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+Files are compared in stages so that most of them never have to be read completely:
 
 1. Group by file size
-2. Group by sha256-hash of the first 1024 Bytes
-3. Group by sha256-hash of the whole file
+2. Group by SHA-256 of the first 1024 bytes (only with `--fast`)
+3. Group by SHA-256 of the whole file
 
-After the whole directory structure is searched, duplicate files are displayed.
+## Features
 
-## Usage:
-	usage: duplicatefilefinder.py [-h] [-fast] [--delete] [--script-friendly]
-	                              [-a] [-top X] [--hidden] [--empty]
-	                              [--min-file-size MIN_FILE_SIZE]
-	                              one-or-more-directories
+- Searches several directories at once
+- Skips symlinks, and by default hidden and empty files
+- Shows the duplicate groups with the most files first (top 3 by default, `-a` for all)
+- Tab-separated output for scripts (`-s`)
+- Optional deletion of older copies, keeping the newest file of each group (`-d`)
+- Single file, standard library only
 
-	positional arguments:
-	  directory             the directory which should be checked for duplicate
-	                        files
+## Installation
 
-	options:
-	  -h, --help            show this help message and exit
-	  -fast                 Enables a faster but less thorough search by pruning
-	                        files between comparison stages. May result in fewer
-	                        duplicates being found than actually exist. Ineffective
-	                        when used with -a. Note: the default is doing a hash 
-                            of the entire file.
-	  --delete              delete older duplicate files
-	  --script-friendly     use machine-readable output
-	  -a                    display all duplicate files. equal to -top 0
-	  -top X                set the amount of displayed duplicates. If 0 is given,
-	                        all results will be displayed. default=3
-	  --hidden              check hidden files and hidden directories too
-	  --empty               check empty files too
-	  --min-file-size MIN_FILE_SIZE
-	                        set the file filter so that file must be at least min-
-	                        file-size to be examined, defaults to 1
+Requires Python 3.9 or newer.
 
-## EXAMPLES:
-    (1) duplicatefilefinder.py ~/Downloads
-        Description: Searches the Downloads directory for duplicate files and displays the top 3 duplicates (with the most files).
-	
-    (2) duplicatefilefinder.py ~/Downloads -top 3
-        Description: Searches duplicates, but only displays the top 3 most duplicates
-	
-    (3) duplicatefilefinder.py ~/Downloads -top 3 --fast 
-        Description: Searches for the top 3 duplicates. May eventually get less than 3 results, even if they would exist.
-	
-    (4) duplicatefilefinder.py ~/Downloads -a
-        Description: Searches duplicates and displays ALL results
-	
-    (5) duplicatefilefinder.py ~/Downloads --hidden --empty
-        Description: Searches duplicates and also include hidden or empty files
+```bash
+git clone https://github.com/michaelkrisper/duplicate-file-finder.git
+cd duplicate-file-finder
+python3 duplicatefilefinder.py --help
+```
 
-    (6) duplicatefilefinder.py ~/Downloads --delete
-        Description: Searches duplicates and deletes the older files, keeping the newest one.
+## Usage
 
-    (7) duplicatefilefinder.py ~/Downloads --script-friendly
-        Description: Searches duplicates and prints them in a machine-readable format.
+```
+usage: duplicatefilefinder.py [-h] [-f] [-d] [-s] [-a | -t X] [-H] [-e]
+                              [-m MIN_FILE_SIZE]
+                              directories [directories ...]
 
-    (9) duplicatefilefinder.py ~/Downloads --min-file-size 1024
-        Description: Searches duplicates but only considers files that are at least 1024 bytes in size.
-	
-## Sample Output:
-	duplicatefilefinder.py . --empty
-	(By Size) 24 Files checked, 1 duplicates found (2 files) 
-	(By Partial Hash) 2 Files checked, 1 duplicates found (2 files)
-	(By Full Hash) 2 Files checked, 1 duplicates found (2 files)
-	
-	(1) Found 2 duplicate files (size: 16 Bytes, sha256 'a1b2c3d4...') in ./test/:
-	 1: copy of testfile
-	 2: testfile
-	
-	Found 1 duplicates (2 duplicate files total)
+positional arguments:
+  directories           one or more directories which should be checked for
+                        duplicate files
 
+options:
+  -h, --help            show this help message and exit
+  -f, --fast            search only for the top X duplicates, which is much
+                        faster. May return fewer than X results, even if they
+                        exist. Ignored when -a is given.
+  -d, --delete          delete older duplicate files, keeping the newest file
+                        of each group
+  -s, --script-friendly
+                        use machine-readable output
+  -a                    display all duplicate files. equal to -top 0
+  -t, -top X            set the amount of displayed duplicates. If 0 is given,
+                        all results will be displayed. default=3
+  -H, --hidden          check hidden files and hidden directories too
+  -e, --empty           check empty files too
+  -m, --min-file-size MIN_FILE_SIZE
+                        set the file filter so that file must be at least min-
+                        file-size to be examined, defaults to 1
+```
+
+### Examples
+
+```bash
+python3 duplicatefilefinder.py ~/Downloads                          # top 3 duplicate groups
+python3 duplicatefilefinder.py ~/Downloads ~/Documents -top 5       # top 5 across two directories
+python3 duplicatefilefinder.py ~/Downloads ~/Documents -top 3 --fast
+python3 duplicatefilefinder.py ~/Pictures -a --min-file-size 1048576  # all groups, files >= 1 MiB
+python3 duplicatefilefinder.py ~/Downloads --hidden --empty
+python3 duplicatefilefinder.py ~/Downloads -a -s > duplicates.tsv
+```
+
+`--delete` acts on every duplicate group that was found, not only on the groups
+that are displayed. Run without it first and check the result.
+
+### Sample output
+
+```
+$ python3 duplicatefilefinder.py sample
+(By Size) 7 Files checked, 3 duplicates found (7 files)
+(By Full Hash) 7 Files checked, 2 duplicates found (5 files)
+
+(1) Found 3 duplicate files (size: 21 Bytes, sha256 'd0c2c85112468272dca514d5cb8732349e8986f50b56b409a8bf23e0b473d70d') in sample/:
+ 1: sample/backup/beach.jpg
+ 2: sample/photos/2023/beach.jpg
+ 3: sample/photos/beach (1).jpg
+
+(2) Found 2 duplicate files (size: 6 Bytes, sha256 '845e91831319e89c4d656bdb80c278ac09a7230d61e5dfd2e1b1fbb436ac8917') in sample/:
+ 1: sample/backup/report.txt
+ 2: sample/report.txt
+
+Found 2 duplicates (5 duplicate files total)
+```
+
+Progress lines and the summary are written to stderr, the results to stdout.
+
+## Development
+
+```bash
+pip install pytest ruff
+pytest
+ruff check .
+```
+
+## License
+
+MIT - see [LICENSE](LICENSE).
