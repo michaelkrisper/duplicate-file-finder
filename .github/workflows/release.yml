@@ -1,0 +1,42 @@
+name: Release
+
+# Bundles everything merged since the last release: tags main with the next
+# minor or major version and publishes a GitHub release listing the merged
+# pull requests and closed tickets. Patch versions are tagged automatically by
+# CI on every merge and get no release of their own.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version part to increase
+        type: choice
+        options: [minor, major]
+        default: minor
+
+permissions:
+  actions: write
+  contents: write
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: python3 .github/scripts/release.py release "$BUMP"
+        env:
+          BUMP: ${{ inputs.bump }}
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          # Workflows to start on main afterwards, e.g. a deploy that stamps the
+          # version into the app. Empty: none.
+          DISPATCH: ""
