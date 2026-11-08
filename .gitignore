@@ -30,3 +30,6 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .venv/
+
+# Local Claude notes
+CLAUDE.local.md
