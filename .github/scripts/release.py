@@ -475,7 +475,10 @@ def rollup_state(checks: list[dict]) -> str:
 
 
 def merge_if_green(number: int, sha: str, default: str) -> bool:
-    fields = "state,isDraft,headRefOid,baseRefName,isCrossRepository,statusCheckRollup"
+    fields = (
+        "state,isDraft,headRefOid,headRefName,baseRefName,isCrossRepository,"
+        "statusCheckRollup"
+    )
     pr = gh_json("pr", "view", str(number), "--repo", repo(), "--json", fields)
     reason = None
     if pr["state"] != "OPEN":
@@ -523,7 +526,17 @@ def merge_if_green(number: int, sha: str, default: str) -> bool:
         raise
     summary(f"Merged PR #{number}.")
     close_linked_issues(number)
+    delete_branch(pr["headRefName"])
     return True
+
+
+def delete_branch(branch: str) -> None:
+    """Delete the merged branch (delete_branch_on_merge skips GITHUB_TOKEN merges)."""
+    try:
+        run("gh", "api", "-X", "DELETE", f"repos/{repo()}/git/refs/heads/{branch}")
+        print(f"Deleted branch {branch}.")
+    except RuntimeError as error:
+        print(f"Branch {branch} not deleted: {error}")
 
 
 def close_linked_issues(number: int) -> None:
