@@ -3,6 +3,7 @@
 Command-line tool that finds duplicate files in one or more directory trees by content.
 
 [![CI](https://github.com/michaelkrisper/duplicate-file-finder/actions/workflows/ci.yml/badge.svg)](https://github.com/michaelkrisper/duplicate-file-finder/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/github/v/tag/michaelkrisper/duplicate-file-finder?sort=semver&label=version)](https://github.com/michaelkrisper/duplicate-file-finder/releases)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -103,6 +104,15 @@ pip install pytest ruff
 pytest
 ruff check .
 ```
+
+CI runs both on every pull request. Every merge to `main` is tagged with the
+next patch version; bundled releases with release notes come from the Release
+workflow.
+
+## Contributing
+
+Changes start with an issue and go through a pull request; see
+[CONTRIBUTING](CONTRIBUTING.md).
 
 ## License
 

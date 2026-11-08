@@ -1,0 +1,39 @@
+name: Auto-merge
+
+# Squash-merges every pull request that is not a draft as soon as all of its
+# checks are green. It runs after each listed workflow finishes, so whichever
+# finishes last triggers the merge. Merges made with the GITHUB_TOKEN start no
+# push workflows, so the main workflow is started afterwards via
+# workflow_dispatch (it tags the new version and deploys).
+
+on:
+  workflow_run:
+    workflows: [CI, Tickets]
+    types: [completed]
+
+permissions:
+  actions: write
+  # Private repos need these to read the pull request's check results.
+  checks: read
+  statuses: read
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  merge:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: automerge-${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+      - run: python3 .github/scripts/release.py automerge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          DISPATCH: ci.yml
